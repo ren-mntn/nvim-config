@@ -34,3 +34,7 @@ vim.opt.swapfile = false -- swapファイルを無効化（推奨）
 -- Keyball用マウス設定
 vim.opt.mouse = "a" -- 全モードでマウスを有効化
 vim.opt.mousescroll = "ver:3,hor:3" -- スクロール速度の調整
+
+-- 行番号表示を通常の絶対行番号に変更
+vim.opt.number = true -- 行番号を表示
+vim.opt.relativenumber = false -- 相対行番号を無効化
