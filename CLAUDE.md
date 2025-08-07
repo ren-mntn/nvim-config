@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Issue Tracking
+
+今後実装予定の機能や改善点については `issue.md` を参照してください。
+実装完了後は該当項目のチェックマークを `[x]` に更新してください。
+
+## Bug Tracking
+
+発生したバグや問題点については `bugs/list.md` を参照してください。
+問題が修正されたら該当項目のチェックマークを `[x]` に更新してください。
+
+### バグ管理システム
+
+各バグには一意の `issueNo` が割り当てられています。
+バグの対応を開始する際は以下の手順に従ってください：
+
+1. `bugs/list.md` から対応するバグの `issueNo` を確認
+2. `bugs/BUG-{issueNo}.md` ファイルを作成
+3. 調査・修正・テストの過程を都度記録
+4. 修正完了後、`bugs/list.md` のチェックマークを `[x]` に更新
+
+**記録すべき内容:**
+- 調査内容と発見事項
+- 試した修正方法とその結果
+- 依存関係や関連する設定
+- テスト結果
+- 最終的な解決方法
+
+この方式により、バグの対応履歴を保持し、類似問題への対応や設定変更の影響を追跡できます。
+
 ## Configuration Architecture
 
 This is a **LazyVim-based** Neovim configuration with Japanese language support. The configuration follows LazyVim's modular architecture:
