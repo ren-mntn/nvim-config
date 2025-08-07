@@ -2,10 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Issue Tracking
+## Task Tracking
 
-今後実装予定の機能や改善点については `issue.md` を参照してください。
-実装完了後は該当項目のチェックマークを `[x]` に更新してください。
+今後実装予定の機能や改善点については `tasks/list.md` を参照してください。
+タスクの対応を開始する際は以下の手順に従ってください：
+
+1. `tasks/list.md` から対応するタスクの `taskNo` を確認
+2. `tasks/TASK-{taskNo}.md` ファイルを作成
+3. 調査・実装・テストの過程を都度記録
+4. 完了後、`tasks/list.md` のチェックマークを `[x]` に更新
+
+**記録すべき内容:**
+- 要件分析と設計内容
+- 実装方針とアプローチ
+- 関連する設定やプラグイン
+- テスト内容と結果
+- 完成した機能の使用方法
 
 ## Bug Tracking
 
