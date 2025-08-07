@@ -6,6 +6,9 @@ vim.opt.helplang = { "ja", "en" } -- ヘルプを日本語優先に
 vim.cmd("language messages ja_JP.UTF-8") -- メッセージを日本語に
 
 -- Node.jsのパスをNeovimの環境変数に追加（LSPサーバー用）
+-- nodenvの初期化
+vim.env.NODENV_ROOT = vim.env.HOME .. "/.nodenv"
+vim.env.PATH = vim.env.NODENV_ROOT .. "/bin:" .. vim.env.PATH
 vim.env.PATH = vim.env.PATH .. ":/Users/ren/.nodenv/versions/20.18.0/bin"
 
 
@@ -38,3 +41,8 @@ vim.opt.mousescroll = "ver:3,hor:3" -- スクロール速度の調整
 -- 行番号表示を通常の絶対行番号に変更
 vim.opt.number = true -- 行番号を表示
 vim.opt.relativenumber = false -- 相対行番号を無効化
+
+-- 診断のインライン表示を有効化
+vim.diagnostic.config({
+  virtual_text = true,
+})
