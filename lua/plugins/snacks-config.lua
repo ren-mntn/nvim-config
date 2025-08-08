@@ -170,6 +170,15 @@ return {
       require("snacks").picker.git_status({
         preview = "git_status",  -- Git差分プレビュー強化
         win = {
+          input = {
+            keys = {
+              -- ステージング操作
+              ["<Tab>"] = { "git_stage", mode = { "n", "i" }, desc = "Stage/Unstage file" },
+              ["<S-Tab>"] = { "git_unstage", mode = { "n", "i" }, desc = "Unstage file" },
+              ["<C-a>"] = { "git_stage_all", mode = { "n", "i" }, desc = "Stage all files" },
+              ["<C-r>"] = { "git_reset", mode = { "n", "i" }, desc = "Reset file" },
+            },
+          },
           preview = {
             wo = { 
               number = true, 
@@ -223,6 +232,52 @@ return {
         end
       })
     end, desc = "Git Diff (Visual Split)" },
+    
+    -- 部分的ステージング用
+    { "<leader>gp", function()
+      -- ファイルを選んで部分的ステージング
+      require("snacks").picker.git_status({
+        confirm = function(picker, item)
+          if item and item.file then
+            picker:close()
+            -- Fugitiveでインタラクティブステージング
+            vim.cmd("Git add --patch " .. item.file)
+          end
+        end
+      })
+    end, desc = "Git Patch Add (Partial Staging)" },
+    
+    -- インタラクティブGit
+    { "<leader>gi", function() vim.cmd("Git") end, desc = "Git Interactive (Fugitive)" },
+    
+    -- クイックコミット機能
+    { "<leader>gC", function()
+      -- ステージ済みファイルがあるかチェック
+      local staged = vim.fn.system("git diff --cached --name-only"):gsub("%s+", "")
+      if staged == "" then
+        vim.notify("No staged changes to commit", vim.log.levels.WARN)
+        return
+      end
+      
+      -- コミットメッセージを入力
+      vim.ui.input({ prompt = "Commit message: " }, function(msg)
+        if msg and msg ~= "" then
+          vim.cmd("Git commit -m '" .. msg .. "'")
+          vim.notify("Committed: " .. msg, vim.log.levels.INFO)
+        end
+      end)
+    end, desc = "Quick Commit (with message)" },
+    
+    -- ステージ＋コミット
+    { "<leader>gA", function()
+      vim.ui.input({ prompt = "Commit message (will stage all): " }, function(msg)
+        if msg and msg ~= "" then
+          vim.cmd("Git add .")
+          vim.cmd("Git commit -m '" .. msg .. "'")
+          vim.notify("Staged all & committed: " .. msg, vim.log.levels.INFO)
+        end
+      end)
+    end, desc = "Stage All & Commit" },
     
     -- プロジェクト・セッション
     { "<leader>fp", function() require("snacks").picker.projects() end, desc = "Projects" },
