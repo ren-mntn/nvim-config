@@ -336,44 +336,69 @@ flowchart TD
     E -->|No| H[共存設定で追加]
 ```
 
-### 2. 必須テンプレート（Claude Code用）
+### 2. 必須：公式ドキュメント参照（Context7）
+🚨 **プラグイン導入時は必ず最初にContext7を使用**
+
+```bash
+# Claude Code操作例
+"use context7で[プラグイン名]の公式ドキュメントを取得して"
+```
+
+**理由：**
+- 最新の正確な設定方法を取得
+- 非推奨設定の回避
+- LazyVim統合の最適化
+- 設定ミスによるエラー防止
+
+### 2.1 LazyVim設定継承の必須パターン
+
+#### ❌ 危険：完全上書き
+```lua
+opts = { setting = "value" }  -- LazyVim設定破壊
+opts = { ... }, opts = function() -- 重複opts（エラー）
+opts.picker.files = { ... }      -- 直接代入（パフォーマンス劣化）
+```
+
+#### ✅ 必須：継承パターン
+```lua
+opts = function(_, opts)
+  opts.setting = opts.setting or {}
+  opts.setting = vim.tbl_deep_extend("force", opts.setting, { new = "value" })
+  -- 関数継承: local orig = opts.fn; opts.fn = function() orig(); custom(); end
+  return opts
+end
+```
+
+#### 📝 実戦問題と解決
+- Snacks遅い→`vim.tbl_deep_extend`使用
+- Neo-tree開く→`opts`関数形式
+- ToggleTerm重複→単一opts統合
+
+### 3. テンプレート
 ```lua
 return {
   "author/plugin-name",
-  -- 🚨必須：遅延読み込み（起動時間維持のため）
-  event = "VeryLazy", -- または cmd/keys/ft
-  
-  -- 🔧推奨：キーマップ統合（keymaps.luaではなく）
-  keys = {
-    { "<leader>xx", "<cmd>Command<cr>", desc = "機能説明" },
-  },
-  
-  -- ⚡必須：optsパターン優先（configは最後の手段）
-  opts = {
-    enable = true,
-    -- 重要な設定のみ記述、詳細はコメントで説明
-  },
+  event = "VeryLazy", -- cmd/keys/ft
+  keys = { { "<leader>xx", "<cmd>Command<cr>", desc = "機能説明" } },
+  opts = function(_, opts)
+    opts.setting = opts.setting or {}
+    opts.setting = vim.tbl_deep_extend("force", opts.setting, { new = "value" })
+    return opts
+  end,
 }
 ```
 
-### 3. Claude Code専用チェックリスト
-プラグイン追加後、以下を必ず実行：
+### 4. チェック手順
 ```bash
-# A. 整合性テスト
-nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
+# 基本確認
+nvim --headless -c "lua print('OK')" -c "qall"
+nvim --startuptime /tmp/startup.log +qall && tail -1 /tmp/startup.log
 
-# B. 起動時間チェック（78ms以下維持）
-nvim --startuptime /tmp/startup_check.log +qall
-tail -1 /tmp/startup_check.log
-
-# C. キーマップ競合チェック
-nvim -c "WhichKey" -c "qa"
-
-# D. 日本語環境確認
-nvim -c "echo &helplang" -c "qa"
+# 問題時
+git stash apply
 ```
 
-### 4. 失敗時の即座復旧
+### 5. 失敗時の即座復旧
 ```bash
 # 問題があれば即座に前の状態に戻す
 git stash apply
@@ -411,4 +436,85 @@ git stash apply  # 即座に前の状態に復帰
 
 # キーマップ確認
 :WhichKey
+```
+
+## 🚨 Snacks.nvim Picker設定の重要な注意点
+
+### node_modules除外が効かない問題と解決法
+
+**症状**: `<leader>ff`でnode_modulesが表示されてしまう
+
+**原因と解決法**:
+
+#### ❌ 間違った設定パターン
+```lua
+-- これらは動作しない
+return {
+  "folke/snacks.nvim",
+  opts = {
+    picker = {
+      sources = { ... }  -- sourcesは存在しない構造
+    }
+  }
+}
+
+-- cmdとargsの組み合わせも問題
+sources = {
+  files = {
+    cmd = "fd",
+    args = { "--exclude", "node_modules" }  -- エラーになる
+  }
+}
+```
+
+#### ✅ 正しい設定パターン
+```lua
+return {
+  "folke/snacks.nvim", 
+  opts = function(_, opts)
+    opts.picker = opts.picker or {}
+    
+    -- 直接picker配下に設定
+    opts.picker.files = {
+      hidden = false,
+      ignored = true,     -- 🔑 最重要：gitignoreを尊重
+      exclude = {
+        "node_modules/**",
+        "dist/**",
+        "build/**",
+      }
+    }
+    
+    opts.picker.grep = {
+      hidden = false, 
+      ignored = true,     -- 🔑 最重要：gitignoreを尊重
+      exclude = {
+        "node_modules/**",
+        "dist/**",
+        "build/**", 
+      }
+    }
+    
+    return opts
+  end
+}
+```
+
+#### 🔑 重要なポイント
+1. **`ignored = true`**: これが最重要。falseにするとgitignoreが無視される
+2. **`opts`関数形式**: LazyVimの既存設定を拡張する正しい方法
+3. **`sources`使用禁止**: Snacksにはsources構造は存在しない
+4. **glob形式**: `node_modules/**`でディレクトリ配下を完全除外
+5. **`cmd`指定時の注意**: `args`との併用でエラーが発生しやすい
+
+#### 📝 トラブルシューティング
+```bash
+# 設定が反映されない場合
+:Lazy reload snacks.nvim
+
+# 現在の設定確認
+:lua print(vim.inspect(require("snacks.config").picker))
+
+# gitignoreファイル確認
+cat .gitignore | grep node_modules
 ```

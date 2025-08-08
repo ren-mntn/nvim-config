@@ -130,16 +130,28 @@ return {
   {
     "lewis6991/gitsigns.nvim",
     event = { "BufReadPre", "BufNewFile" },
-    opts = {
-      signs = {
-        add = { text = "▎" },
-        change = { text = "▎" },
-        delete = { text = "" },
-        topdelete = { text = "" },
-        changedelete = { text = "▎" },
-        untracked = { text = "▎" },
-      },
-      on_attach = function(buffer)
+    opts = function(_, opts)
+      -- LazyVimの既存設定を継承してGitSigns設定を拡張
+      opts = vim.tbl_deep_extend("force", opts or {}, {
+        signs = {
+          add = { text = "▎" },
+          change = { text = "▎" },
+          delete = { text = "" },
+          topdelete = { text = "" },
+          changedelete = { text = "▎" },
+          untracked = { text = "▎" },
+        },
+      })
+      
+      -- on_attachをラップして既存の設定を保持
+      local original_on_attach = opts.on_attach
+      opts.on_attach = function(buffer)
+        -- LazyVimの既存on_attachを実行
+        if original_on_attach then
+          original_on_attach(buffer)
+        end
+        
+        -- カスタムキーマップを追加
         local gs = package.loaded.gitsigns
         local function map(mode, l, r, desc)
           vim.keymap.set(mode, l, r, { buffer = buffer, desc = desc })
@@ -165,8 +177,10 @@ return {
         
         -- Text object
         map({"o", "x"}, "ih", ":<C-U>Gitsigns select_hunk<CR>", "GitSigns Select Hunk")
-      end,
-    },
+      end
+      
+      return opts
+    end,
   },
 
   -- 高度なGit操作用

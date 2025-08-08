@@ -15,6 +15,9 @@ vim.env.NODENV_ROOT = vim.env.HOME .. "/.nodenv"
 vim.env.PATH = vim.env.NODENV_ROOT .. "/bin:" .. vim.env.PATH
 vim.env.PATH = vim.env.PATH .. ":/Users/ren/.nodenv/versions/20.18.0/bin"
 
+-- Homebrewのツールパスを追加（fd, ripgrep用）
+vim.env.PATH = vim.env.PATH .. ":/opt/homebrew/bin"
+
 
 -- 設定を整理するためのグループを作成
 local augroup = vim.api.nvim_create_augroup("MyCustomAutocmds", { clear = true })

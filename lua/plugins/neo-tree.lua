@@ -12,7 +12,14 @@ return {
     { "<leader>E", "<cmd>Neotree reveal<cr>", desc = "Neo-tree Reveal" },
   },
   opts = {
-    event_handlers = {},
+    event_handlers = {
+      {
+        event = "neo_tree_popup_buffer_ready",
+        handler = function()
+          print("DEBUG: Neo-tree opened from: " .. debug.traceback())
+        end,
+      },
+    },
     filesystem = {
       filtered_items = {
         visible = true,
