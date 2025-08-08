@@ -13,7 +13,7 @@ return {
       
       -- 2秒以上かかる操作を自動検出
       profile.instrument_autocmds()
-      profile.instrument({
+      profile.instrument("*", {
         slow_threshold = 2000, -- 2秒以上で警告
       })
       
