@@ -2,6 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🤖 Claude Code専用管理システム
+
+このNeovim設定は**完全Claude Code管理**です。以下の手順とツールを必ず使用してください。
+
+### 必須：変更前チェック
+```bash
+# 1. 現在状態をバックアップ
+git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"
+
+# 2. 設定整合性テスト実行
+nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
+
+# 3. パフォーマンス測定
+nvim --startuptime /tmp/startup_before.log +qall
+```
+
+### 必須：変更後検証
+```bash
+# 1. 整合性テスト再実行
+nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
+
+# 2. 起動時間比較
+nvim --startuptime /tmp/startup_after.log +qall
+diff /tmp/startup_before.log /tmp/startup_after.log
+
+# 3. エラーチェック
+nvim --headless -c "checkhealth" -c "qall"
+```
+
+### 緊急復旧コマンド
+問題が発生した場合は即座に実行：
+```bash
+git stash apply  # 最新バックアップから復旧
+```
+
 ## Task Tracking
 
 今後実装予定の機能や改善点については `tasks/list.md` を参照してください。
@@ -131,37 +166,55 @@ Since Keyball provides seamless mouse control:
    - Quick mouse positioning + keyboard commands
    - Gesture-like operations with modifier keys
 
-## Common Development Commands
+## Claude Code必須操作コマンド
 
-### Code Formatting
+### 🔧 変更前の必須準備
 ```bash
-# LazyVim uses conform.nvim for formatting
-# Format current buffer: <leader>cf (LazyVim default)
+# 1. バックアップ作成
+git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"
+
+# 2. 現在の起動時間記録
+nvim --startuptime /tmp/startup_before.log +qall && tail -1 /tmp/startup_before.log
+
+# 3. 設定整合性確認
+nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
 ```
 
-### Linting and Style
+### ⚡ 変更後の必須検証
 ```bash
-# Code formatting with StyLua (configuration in stylua.toml)
-stylua --check .
-stylua .
+# 1. 整合性テスト
+nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
+
+# 2. 起動時間比較
+nvim --startuptime /tmp/startup_after.log +qall && echo "Before/After:" && tail -1 /tmp/startup_before.log && tail -1 /tmp/startup_after.log
+
+# 3. 健全性チェック
+nvim --headless -c "checkhealth" -c "qall"
 ```
 
-### Plugin Management
+### 🚨 緊急復旧
 ```bash
-# Update plugins (in Neovim)
-:Lazy update
-
-# View plugin status
-:Lazy
-
-# Clean unused plugins
-:Lazy clean
+# 問題発生時は即座に実行
+git stash apply
 ```
 
-### Terminal Operations
-- Multiple terminal instances supported (1-4 via `<leader>t1-t4`)
-- Floating terminals for specific tools (lazygit, python, node, htop)
-- Code execution: send lines/selections to terminal via `<leader>tl`/`<leader>tr`
+### 📊 日常メンテナンス
+```bash
+# プラグイン更新（手動実行推奨）
+nvim -c "Lazy update" -c "qa"
+
+# 設定の健全性確認
+nvim -c "TestNvimConfig"
+
+# パフォーマンス分析
+nvim -c "Lazy profile"
+```
+
+### 🎯 ターミナル操作
+- 複数ターミナル: `<leader>t1-t4`
+- LazyGit: `<leader>tg` 
+- Python REPL: `<leader>tp`
+- Node REPL: `<leader>tn`
 
 ## File Structure Patterns
 
@@ -215,19 +268,21 @@ return {
 }
 ```
 
-### Performance Optimization Guidelines
+### Performance Optimization Guidelines (2024年最新版)
 
-1. **Lazy Loading** - Always specify loading conditions:
-   - `event` - Load on specific events (e.g., "TextChanged", "BufRead")
-   - `cmd` - Load when command is used
-   - `keys` - Load when key mapping is triggered
-   - `ft` - Load for specific file types
+1. **必須：遅延読み込み設定** - 全てのプラグインで指定:
+   - `event = "VeryLazy"` - 一般的なプラグイン用
+   - `event = "BufRead"` - ファイル読み込み時
+   - `cmd = "CommandName"` - コマンド実行時のみ
+   - `keys = { "<leader>x" }` - キー使用時のみ
+   - `ft = { "typescript", "javascript" }` - 特定ファイルタイプ
 
-2. **Dependencies** - Specify only required dependencies
+2. **パフォーマンス最適化**:
+   - Pythonプロバイダー明示設定（options.lua:8-10で実装済み）
+   - 不要なruntimeプラグイン無効化（lazy.lua:46-60で実装済み）
+   - `opts`パターンを`config`より優先使用
 
-3. **Priority** - Set `priority = 1000` only for essential plugins (colorschemes)
-
-4. **Keys Definition** - Define keymaps in the plugin spec:
+3. **キーマップ統合** - プラグインspec内で定義:
 ```lua
 keys = {
   { "<leader>xx", "<cmd>Command<cr>", desc = "Description" },
@@ -251,65 +306,109 @@ return {
 }
 ```
 
-### Configuration Rules
+### Configuration Rules (2024年ベストプラクティス)
 
-1. Use `opts` instead of `config = function()` when possible
-2. Add lazy loading triggers (`event`, `cmd`, `keys`, `ft`)
-3. Define keymaps in the plugin spec, not in keymaps.lua
-4. Keep configurations focused and minimal
-5. Comment in Japanese for clarity
-6. Follow existing patterns in the codebase
+1. **優先度**：`opts` > `opts function` > `config function`
+2. **必須**：全プラグインで遅延読み込み設定（`event`, `cmd`, `keys`, `ft`）
+3. **統合**：キーマップはプラグインspec内で定義（keymaps.luaではなく）
+4. **最小化**：設定は必要最小限に留める
+5. **文書化**：重要な設定に日本語コメント
+6. **パターン統一**：既存コードの命名規則・構造に従う
+7. **パフォーマンス重視**：起動時間100ms以下を目標
 
-### Adding New Plugins
+## Claude Code向けプラグイン追加手順
 
-When adding new plugins, always:
+### ⚠️ 必須：追加前の安全確認
+```bash
+# 必ず実行：現在の状態をバックアップ
+git stash push -m "before_plugin_$(date +%Y%m%d_%H%M%S)"
+```
 
-1. **Research Popular Configurations**
-   - Check the plugin's README for recommended settings
-   - Look for popular dotfiles using the plugin
-   - Review LazyVim extras if available
+### 1. プラグイン追加時の判断基準
+```mermaid
+flowchart TD
+    A[プラグイン追加要求] --> B{LazyVim extrasに存在？}
+    B -->|Yes| C[extrasを使用（推奨）]
+    B -->|No| D{類似機能のプラグイン存在？}
+    D -->|Yes| E{競合する？}
+    D -->|No| F[新規追加OK]
+    E -->|Yes| G[既存プラグイン無効化 or 追加拒否]
+    E -->|No| H[共存設定で追加]
+```
 
-2. **Document Key Features**
-   - Add comments explaining what each option does
-   - Include popular/useful configurations as comments
-   - Provide examples of advanced usage
-
-3. **Example Template**:
+### 2. 必須テンプレート（Claude Code用）
 ```lua
 return {
-  "author/new-plugin",
-  -- 遅延読み込みの設定
-  event = "BufRead", -- or appropriate trigger
+  "author/plugin-name",
+  -- 🚨必須：遅延読み込み（起動時間維持のため）
+  event = "VeryLazy", -- または cmd/keys/ft
   
-  -- よく使われるキーバインド
+  -- 🔧推奨：キーマップ統合（keymaps.luaではなく）
   keys = {
-    { "<leader>np", "<cmd>PluginCommand<cr>", desc = "Plugin description" },
+    { "<leader>xx", "<cmd>Command<cr>", desc = "機能説明" },
   },
   
+  -- ⚡必須：optsパターン優先（configは最後の手段）
   opts = {
-    -- 基本設定
     enable = true,
-    
-    -- 人気のある設定例（コメントで説明）
-    -- feature_x = false, -- この機能を有効にすると〇〇ができる
-    -- feature_y = "value", -- 一般的な値: "value1", "value2"
-    
-    -- 高度な設定例
-    -- advanced = {
-    --   option1 = true, -- プロ向け: パフォーマンスが向上
-    --   option2 = 100,  -- デフォルト: 50, 大きくすると〇〇
-    -- },
+    -- 重要な設定のみ記述、詳細はコメントで説明
   },
-  
-  -- 設定のヒント
-  -- config = function(_, opts)
-  --   -- 複雑な設定が必要な場合のみ使用
-  --   -- 例: 他のプラグインとの連携設定など
-  -- end,
 }
 ```
 
-4. **Performance Considerations**
-   - Always consider lazy loading options
-   - Document performance impact of features
-   - Suggest lightweight alternatives when applicable
+### 3. Claude Code専用チェックリスト
+プラグイン追加後、以下を必ず実行：
+```bash
+# A. 整合性テスト
+nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
+
+# B. 起動時間チェック（78ms以下維持）
+nvim --startuptime /tmp/startup_check.log +qall
+tail -1 /tmp/startup_check.log
+
+# C. キーマップ競合チェック
+nvim -c "WhichKey" -c "qa"
+
+# D. 日本語環境確認
+nvim -c "echo &helplang" -c "qa"
+```
+
+### 4. 失敗時の即座復旧
+```bash
+# 問題があれば即座に前の状態に戻す
+git stash apply
+```
+
+---
+
+## 🚨 Claude Code運用の絶対ルール
+
+### 変更実行前の必須手順
+1. **現在状態バックアップ**: `git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"`
+2. **テスト実行**: `nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"`
+3. **パフォーマンス測定**: `nvim --startuptime /tmp/startup_before.log +qall`
+
+### 変更実行後の必須検証
+1. **再テスト**: `nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"`
+2. **パフォーマンス確認**: `nvim --startuptime /tmp/startup_after.log +qall`
+3. **健全性チェック**: `nvim --headless -c "checkhealth" -c "qall"`
+
+### 問題発生時の緊急復旧
+```bash
+git stash apply  # 即座に前の状態に復帰
+```
+
+### Claude Codeで使用可能なテストコマンド
+```bash
+# 設定整合性テスト（Neovim内から）
+:TestNvimConfig
+
+# パフォーマンス分析
+:Lazy profile
+
+# 健全性チェック
+:checkhealth
+
+# キーマップ確認
+:WhichKey
+```
