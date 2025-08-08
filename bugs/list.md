@@ -9,9 +9,29 @@
 
 ### プラグイン関連
 
+- [ ] **[#BUG-012] LazyGit が ToggleTerm 内で一瞬開いてすぐ閉じる**
+  - **現象**: `<leader>tg` で LazyGit を開こうとすると、ウィンドウが一瞬表示されてすぐに閉じてしまう
+  - **影響**:
+    - Git操作のワークフローが中断される
+    - LazyGit の主要機能が使用できない
+    - ToggleTerm との統合が機能しない
+  - **想定原因**:
+    - LazyGit が `/dev/tty` デバイスにアクセスできない (`device not configured` エラー)
+    - ToggleTerm のターミナル環境設定の問題
+    - 環境変数 `TERM` の設定不足
+  - **エラーメッセージ**: `*fs.PathError open /dev/tty: device not configured`
+  - **再現手順**:
+    1. Neovim を起動
+    2. `<leader>tg` を押してLazyGitを起動
+    3. LazyGit ウィンドウが一瞬開いてすぐ閉じる
+  - **調査ポイント**:
+    - ToggleTerm の環境変数設定
+    - LazyGit の pty/tty 要求設定
+    - 代替的な LazyGit 起動方法の検討
+
 ### UI・表示関連
 
-- [ ] **[#BUG-007] Neo-tree の Git タブで大量ファイルが開かれる問題**
+- [x] **[#BUG-007] Neo-tree の Git タブで大量ファイルが開かれる問題**
   - **現象**: Neo-tree で Git タブに切り替えて差分ファイルを選択すると、数十個の差分ファイルが一度に開かれる
   - **影響**:
     - バッファが大量に開かれてメモリ消費が増加
