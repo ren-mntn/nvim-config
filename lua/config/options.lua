@@ -5,6 +5,10 @@
 vim.opt.helplang = { "ja", "en" } -- ヘルプを日本語優先に
 vim.cmd("language messages ja_JP.UTF-8") -- メッセージを日本語に
 
+-- パフォーマンス最適化：Pythonプロバイダーの明示的設定
+vim.g.python3_host_prog = vim.fn.exepath('python3') or '/usr/bin/python3'
+vim.g.python_host_prog = vim.fn.exepath('python2') or '/usr/bin/python2'
+
 -- Node.jsのパスをNeovimの環境変数に追加（LSPサーバー用）
 -- nodenvの初期化
 vim.env.NODENV_ROOT = vim.env.HOME .. "/.nodenv"
