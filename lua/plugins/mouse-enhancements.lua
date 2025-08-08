@@ -5,9 +5,19 @@ return {
     name = "mouse-enhancements",
     event = "VeryLazy", -- 遅延読み込み
     priority = 100,
-    config = function()
-      -- マウスサポートを有効化
-      vim.opt.mouse = "a"
+    opts = {
+      -- マウス設定をoptsで管理
+      mouse = "a",
+      scrolloff = 8,
+      sidescrolloff = 8,
+      mousetime = 200,
+    },
+    config = function(_, opts)
+      -- optsからマウス設定を適用
+      vim.opt.mouse = opts.mouse
+      vim.opt.scrolloff = opts.scrolloff
+      vim.opt.sidescrolloff = opts.sidescrolloff
+      vim.opt.mousetime = opts.mousetime
       
       -- マウスクリックでのウィンドウフォーカス時の挙動
       vim.api.nvim_create_autocmd("WinEnter", {
@@ -29,13 +39,6 @@ return {
           end
         end,
       })
-      
-      -- マウスホイールでのスクロール速度調整
-      vim.opt.scrolloff = 8 -- スクロール時の上下の余白
-      vim.opt.sidescrolloff = 8 -- 横スクロール時の左右の余白
-      
-      -- マウスでのリサイズを滑らかに
-      vim.opt.mousetime = 200 -- ダブルクリックの判定時間（ミリ秒）
       
       -- 右クリックメニューのカスタマイズ例
       -- vim.opt.mousemodel = "popup_setpos" -- 右クリックでポップアップメニュー表示
