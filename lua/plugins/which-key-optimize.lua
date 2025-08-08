@@ -3,6 +3,7 @@
 return {
   {
     "folke/which-key.nvim",
+    event = "VeryLazy", -- 遅延読み込み
     opts = {
       delay = 200,
       spec = {

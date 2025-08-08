@@ -3,6 +3,7 @@ return {
   {
     dir = vim.fn.stdpath("config"), -- ローカル設定として扱う
     name = "mouse-enhancements",
+    event = "VeryLazy", -- 遅延読み込み
     priority = 100,
     config = function()
       -- マウスサポートを有効化

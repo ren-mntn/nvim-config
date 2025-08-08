@@ -1,7 +1,7 @@
 return {
   "akinsho/toggleterm.nvim",
   version = "*",
-  cmd = { "ToggleTerm", "TermExec" }, -- 遅延読み込み
+  event = "VeryLazy", -- 遅延読み込み（cmdではなくeventに変更）
   keys = {
     { "`", "<cmd>ToggleTerm<cr>", desc = "Toggle Terminal" },
     { "<leader>tt", "<cmd>ToggleTerm<cr>", desc = "Toggle Terminal" },

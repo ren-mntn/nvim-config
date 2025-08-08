@@ -1,6 +1,7 @@
 -- Telescope パフォーマンス最適化設定
 return {
   "nvim-telescope/telescope.nvim",
+  cmd = "Telescope", -- コマンド実行時のみ読み込み
   dependencies = {
     {
       "nvim-telescope/telescope-fzf-native.nvim",

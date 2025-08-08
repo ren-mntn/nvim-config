@@ -2,6 +2,7 @@ return {
   -- LazyVimのデフォルトステータスライン設定を拡張
   {
     "nvim-lualine/lualine.nvim",
+    event = "VeryLazy", -- 遅延読み込み
     opts = function(_, opts)
       -- ブランチ情報をより詳細に表示
       local git_branch = {

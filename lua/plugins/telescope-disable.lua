@@ -3,6 +3,7 @@ return {
   {
     "nvim-telescope/telescope.nvim",
     optional = true,
+    event = "VeryLazy", -- 遅延読み込み
     opts = function(_, opts)
       -- file_browserを無効化
       if opts.extensions then

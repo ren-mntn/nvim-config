@@ -2,6 +2,7 @@
 return {
   {
     "williamboman/mason.nvim",
+    cmd = "Mason", -- コマンド実行時のみ読み込み
     opts = function(_, opts)
       -- ensure_installedのリストに"typos-cli"を追加
       opts.ensure_installed = opts.ensure_installed or {}
