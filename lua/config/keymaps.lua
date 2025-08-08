@@ -112,3 +112,17 @@ vim.keymap.set("n", "<leader>gu", function()
     vim.notify("✅ " .. reset_type .. " reset完了", vim.log.levels.INFO)
   end)
 end, { desc = "Undo Last Commit" })
+
+-- 高速移動用キーマップ（Keyball向け）
+vim.keymap.set("n", "<C-j>", "5j", { desc = "Fast down (5 lines)" })
+vim.keymap.set("n", "<C-k>", "5k", { desc = "Fast up (5 lines)" })
+vim.keymap.set("n", "<C-h>", "5h", { desc = "Fast left (5 chars)" })
+vim.keymap.set("n", "<C-l>", "5l", { desc = "Fast right (5 chars)" })
+
+-- さらに高速移動
+vim.keymap.set("n", "<S-j>", "10j", { desc = "Very fast down (10 lines)" })
+vim.keymap.set("n", "<S-k>", "10k", { desc = "Very fast up (10 lines)" })
+
+-- ページ移動の代替
+vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Half page down + center" })
+vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up + center" })
