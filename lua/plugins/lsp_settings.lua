@@ -2,14 +2,16 @@ return {
   -- LSP設定
   {
     "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" }, -- ファイル読み込み時
-    opts = {
-      servers = {
-        typos_lsp = {},
-        -- tsgoは2025年末までLSP未対応のため、vtslsを使用
-        tsserver = false, -- 古いtsserverは無効化
-        -- vtsls = {},  -- LazyVimのTypeScript extrasで自動有効化されるのでコメントアウト
-      },
-    },
+    event = { "BufReadPre", "BufNewFile" },
+    opts = function(_, opts)
+      -- typos_lsp設定
+      opts.servers = opts.servers or {}
+      opts.servers.typos_lsp = {}
+      
+      -- 古いtsserverは無効化（LazyVimのTypeScript extrasがvtslsを使用）
+      opts.servers.tsserver = false
+      
+      return opts
+    end,
   },
 }

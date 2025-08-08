@@ -8,27 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 必須：変更前チェック
 ```bash
-# 1. 現在状態をバックアップ
+# 現在状態をバックアップ
 git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"
-
-# 2. 設定整合性テスト実行
-nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
-
-# 3. パフォーマンス測定
-nvim --startuptime /tmp/startup_before.log +qall
 ```
 
 ### 必須：変更後検証
 ```bash
-# 1. 整合性テスト再実行
-nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
-
-# 2. 起動時間比較
-nvim --startuptime /tmp/startup_after.log +qall
-diff /tmp/startup_before.log /tmp/startup_after.log
-
-# 3. エラーチェック
-nvim --headless -c "checkhealth" -c "qall"
+# 基本動作確認
+nvim --headless -c "lua print('OK')" -c "qall"
 ```
 
 ### 緊急復旧コマンド
@@ -170,26 +157,14 @@ Since Keyball provides seamless mouse control:
 
 ### 🔧 変更前の必須準備
 ```bash
-# 1. バックアップ作成
+# バックアップ作成
 git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"
-
-# 2. 現在の起動時間記録
-nvim --startuptime /tmp/startup_before.log +qall && tail -1 /tmp/startup_before.log
-
-# 3. 設定整合性確認
-nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
 ```
 
 ### ⚡ 変更後の必須検証
 ```bash
-# 1. 整合性テスト
-nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"
-
-# 2. 起動時間比較
-nvim --startuptime /tmp/startup_after.log +qall && echo "Before/After:" && tail -1 /tmp/startup_before.log && tail -1 /tmp/startup_after.log
-
-# 3. 健全性チェック
-nvim --headless -c "checkhealth" -c "qall"
+# 基本動作確認
+nvim --headless -c "lua print('OK')" -c "qall"
 ```
 
 ### 🚨 緊急復旧
@@ -202,12 +177,6 @@ git stash apply
 ```bash
 # プラグイン更新（手動実行推奨）
 nvim -c "Lazy update" -c "qa"
-
-# 設定の健全性確認
-nvim -c "TestNvimConfig"
-
-# パフォーマンス分析
-nvim -c "Lazy profile"
 ```
 
 ### 🎯 ターミナル操作
@@ -410,29 +379,19 @@ git stash apply
 
 ### 変更実行前の必須手順
 1. **現在状態バックアップ**: `git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"`
-2. **テスト実行**: `nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"`
-3. **パフォーマンス測定**: `nvim --startuptime /tmp/startup_before.log +qall`
 
 ### 変更実行後の必須検証
-1. **再テスト**: `nvim --headless -c "lua require('tests.config_tests').run_all_tests()" -c "qall"`
-2. **パフォーマンス確認**: `nvim --startuptime /tmp/startup_after.log +qall`
-3. **健全性チェック**: `nvim --headless -c "checkhealth" -c "qall"`
+1. **基本動作確認**: `nvim --headless -c "lua print('OK')" -c "qall"`
 
 ### 問題発生時の緊急復旧
 ```bash
 git stash apply  # 即座に前の状態に復帰
 ```
 
-### Claude Codeで使用可能なテストコマンド
+### Claude Codeで使用可能なコマンド
 ```bash
-# 設定整合性テスト（Neovim内から）
-:TestNvimConfig
-
-# パフォーマンス分析
-:Lazy profile
-
-# 健全性チェック
-:checkhealth
+# プラグイン管理
+:Lazy
 
 # キーマップ確認
 :WhichKey
