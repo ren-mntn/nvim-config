@@ -4,6 +4,12 @@
 vim.keymap.set("n", "<Leader>e", "<cmd>Neotree toggle<cr>", { desc = "Toggle Neo-tree" })
 vim.keymap.set("n", "<C-S-e>", "<cmd>Neotree toggle<cr>", { desc = "Toggle Neo-tree (Ctrl+Shift+E)" })
 
+-- ファイル保存と終了
+vim.keymap.set({"n", "i", "v"}, "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
+vim.keymap.set("n", "<leader>q", "<cmd>q<CR>", { desc = "Quit" })
+vim.keymap.set("n", "<leader>Q", "<cmd>qa<CR>", { desc = "Quit all" })
+vim.keymap.set("n", "<leader>x", "<cmd>x<CR>", { desc = "Save and quit" })
+
 -- タブ移動
 vim.keymap.set({"n", "i"}, "<C-PageDown>", "<cmd>bnext<CR>", { desc = "Next Buffer" })
 vim.keymap.set({"n", "i"}, "<C-PageUp>", "<cmd>bprevious<CR>", { desc = "Previous Buffer" })
