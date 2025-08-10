@@ -7,10 +7,32 @@ local CONFIG = {
   setup_timeout = 60000,
   terminal_app = "iTerm.app",
   package_manager = "pnpm",
-  excluded_dotfiles = { ".git", ".DS_Store", ".", ".." },
+  excluded_dotfiles = { ".git", ".DS_Store", ".", "..", "git-worktrees", ".worktrees" },
   project_dirs = { ".vscode", ".cursor" },
   project_files = { ".npmrc" },
+  global_gitignore_path = vim.fn.expand("~/.gitignore_global"),
 }
+
+-- グローバルgitignoreファイルから読み込み
+local function read_global_gitignore()
+  local gitignore_files = {}
+  local gitignore_path = CONFIG.global_gitignore_path
+
+  if vim.fn.filereadable(gitignore_path) == 1 then
+    local content = vim.fn.readfile(gitignore_path)
+    for _, line in ipairs(content) do
+      line = vim.trim(line)
+      if line ~= "" and not line:match("^#") and not line:match("/$") then
+        -- パターンでないものとディレクトリでないものを追加
+        if not line:match("%*") and not vim.tbl_contains(CONFIG.excluded_dotfiles, line) then
+          table.insert(gitignore_files, line)
+        end
+      end
+    end
+  end
+
+  return gitignore_files
+end
 
 -- Worktree配置パスを生成（ベストプラクティス準拠）
 local function get_worktree_base(git_root)
@@ -38,17 +60,31 @@ local function create_patch_file()
     return nil
   end
 
-  vim.notify("📦 未コミット変更をパッチとして保存中...", vim.log.levels.INFO)
   local patch_file = "/tmp/worktree-patch-" .. os.time() .. ".patch"
   vim.fn.system("git diff HEAD > " .. patch_file)
   local patch_size = vim.fn.getfsize(patch_file)
 
-  return patch_size > 0 and patch_file or nil
+  if patch_size > 0 then
+    vim.notify("📦 未コミット変更をパッチとして保存しました", vim.log.levels.INFO)
+    return patch_file
+  end
+
+  return nil
 end
 
 -- ファイル操作のユーティリティ関数
 local function collect_dotfiles()
   local dot_files = {}
+  local git_root = get_git_root()
+  if not git_root then
+    return {}
+  end
+
+  -- グローバルgitignoreファイルから動的に読み込み
+  local global_ignore_files = read_global_gitignore()
+  local all_files = vim.tbl_extend("force", global_ignore_files, {})
+
+  -- 通常のドットファイルも収集
   local exclude_pattern = table.concat(
     vim.tbl_map(function(item)
       return "grep -v '^" .. vim.pesc(item) .. "$'"
@@ -60,11 +96,30 @@ local function collect_dotfiles()
     vim.fn.system(string.format("ls -a | grep '^\\.' | %s | grep -v '/$'", exclude_pattern)):gsub("\n", " ")
 
   if all_dotfiles ~= "" then
-    dot_files = vim.split(all_dotfiles, " ")
+    local discovered_dots = vim.split(all_dotfiles, " ")
     -- 空文字列を除去
-    dot_files = vim.tbl_filter(function(f)
+    discovered_dots = vim.tbl_filter(function(f)
       return f ~= ""
-    end, dot_files)
+    end, discovered_dots)
+
+    -- 重複を避けて追加
+    for _, file in ipairs(discovered_dots) do
+      if not vim.tbl_contains(all_files, file) then
+        table.insert(all_files, file)
+      end
+    end
+  end
+
+  -- 実際に存在するファイルのみを返す
+  for _, file in ipairs(all_files) do
+    if vim.fn.filereadable(git_root .. "/" .. file) == 1 or vim.fn.isdirectory(git_root .. "/" .. file) == 1 then
+      table.insert(dot_files, file)
+    end
+  end
+
+  -- デバッグ情報
+  if #dot_files > 0 then
+    vim.notify("🔍 検出されたファイル: " .. table.concat(dot_files, ", "), vim.log.levels.INFO)
   end
 
   return dot_files
@@ -114,6 +169,9 @@ local function create_worktree()
         return
       end
 
+      -- Git worktree作成開始前にパッチとファイル準備
+      vim.notify("📋 ファイル準備中...", vim.log.levels.INFO)
+
       -- 未コミット変更をチェック（追跡ファイルのみ）
       local patch_file = create_patch_file()
 
@@ -148,11 +206,31 @@ local function create_worktree()
         return
       end
 
-      -- 先にiTerm2タブを開く
-      vim.fn.system(string.format("cd %s && open -a %s .", vim.fn.shellescape(worktree_path), CONFIG.terminal_app))
+      -- worktree作成成功を通知
+      vim.notify("✅ Worktree作成完了: " .. branch_name, vim.log.levels.INFO)
 
-      -- セットアップスクリプト作成・タブ内実行
-      M.execute_setup_in_tab(worktree_path, git_root, patch_file, dot_files)
+      -- メインスレッドで安全に実行
+      vim.schedule(function()
+        -- 現在のディレクトリをworktreeに切り替え
+        vim.cmd("cd " .. vim.fn.fnameescape(worktree_path))
+
+        -- Neo-treeをリフレッシュ（新しいルートに変更）
+        pcall(function()
+          vim.cmd("Neotree close")
+          vim.defer_fn(function()
+            pcall(function()
+              -- 新しいworktreeをneo-treeのルートとして開く
+              vim.cmd("Neotree filesystem reveal dir=" .. vim.fn.fnameescape(worktree_path))
+            end)
+          end, 300)
+        end)
+
+        -- 先にiTerm2タブを開く
+        vim.fn.system(string.format("cd %s && open -a %s .", vim.fn.shellescape(worktree_path), CONFIG.terminal_app))
+
+        -- セットアップを直接実行（AppleScript不使用）
+        M.execute_setup_directly(worktree_path, git_root, patch_file, dot_files)
+      end)
     end)
   end)
 end
@@ -233,6 +311,18 @@ set -e
 
 echo "⚙️ 環境セットアップ中..."
 cd "%s"
+
+# グローバルgitignore設定
+echo "📋 グローバル.gitignore設定中..."
+if [ -f ~/.gitignore_global ]; then
+  # グローバル設定
+  git config core.excludesFile ~/.gitignore_global
+  # ローカルにも.gitignore_globalをコピー（参照用）
+  cp ~/.gitignore_global .gitignore_global 2>/dev/null || true
+  echo "✅ グローバル.gitignore設定完了"
+else
+  echo "⚠️ ~/.gitignore_global が見つかりません"
+fi
 
 # .vscode/.cursorディレクトリコピー
 if [ -d "%s/.vscode" ]; then
@@ -316,6 +406,104 @@ function M.execute_setup_script(worktree_path, git_root, patch_file, dot_files)
   end
 end
 
+-- セットアップを直接実行（AppleScript不使用）
+function M.execute_setup_directly(worktree_path, git_root, patch_file, dot_files)
+  vim.notify("⚙️ セットアップを実行中...", vim.log.levels.INFO)
+
+  -- グローバルgitignore設定
+  vim.fn.system(
+    string.format("cd %s && git config core.excludesFile ~/.gitignore_global", vim.fn.shellescape(worktree_path))
+  )
+
+  -- .vscodeディレクトリコピー
+  if vim.fn.isdirectory(git_root .. "/.vscode") == 1 then
+    vim.notify("📁 .vscode設定をコピー中...", vim.log.levels.INFO)
+    vim.fn.system(
+      string.format(
+        "cp -r %s %s",
+        vim.fn.shellescape(git_root .. "/.vscode"),
+        vim.fn.shellescape(worktree_path .. "/.vscode")
+      )
+    )
+  end
+
+  -- .cursorディレクトリコピー
+  if vim.fn.isdirectory(git_root .. "/.cursor") == 1 then
+    vim.notify("📁 .cursor設定をコピー中...", vim.log.levels.INFO)
+    vim.fn.system(
+      string.format(
+        "cp -r %s %s",
+        vim.fn.shellescape(git_root .. "/.cursor"),
+        vim.fn.shellescape(worktree_path .. "/.cursor")
+      )
+    )
+  end
+
+  -- .npmrcファイルコピー
+  if vim.fn.filereadable(git_root .. "/.npmrc") == 1 then
+    vim.notify("📋 .npmrcをコピー中...", vim.log.levels.INFO)
+    vim.fn.system(
+      string.format(
+        "cp %s %s",
+        vim.fn.shellescape(git_root .. "/.npmrc"),
+        vim.fn.shellescape(worktree_path .. "/.npmrc")
+      )
+    )
+  end
+
+  -- ドットファイルコピー
+  if dot_files and #dot_files > 0 then
+    vim.notify(
+      string.format("📋 プロジェクトファイルをコピー中... (%d個)", #dot_files),
+      vim.log.levels.INFO
+    )
+    for _, file in ipairs(dot_files) do
+      if file ~= "" then
+        local src = git_root .. "/" .. file
+        local dst = worktree_path .. "/" .. file
+        if vim.fn.filereadable(src) == 1 then
+          vim.fn.system(string.format("cp %s %s", vim.fn.shellescape(src), vim.fn.shellescape(dst)))
+          vim.notify("✅ " .. file .. " をコピー完了", vim.log.levels.INFO)
+        elseif vim.fn.isdirectory(src) == 1 then
+          vim.fn.system(string.format("cp -r %s %s", vim.fn.shellescape(src), vim.fn.shellescape(dst)))
+          vim.notify("✅ " .. file .. " ディレクトリをコピー完了", vim.log.levels.INFO)
+        else
+          vim.notify("⚠️ " .. file .. " が見つかりませんでした", vim.log.levels.WARN)
+        end
+      end
+    end
+  else
+    vim.notify("ℹ️ コピー対象のプロジェクトファイルがありません", vim.log.levels.INFO)
+  end
+
+  -- パッチファイル適用
+  if patch_file then
+    vim.notify("📝 未コミット変更を適用中...", vim.log.levels.INFO)
+    local patch_result = vim.fn.system(
+      string.format("cd %s && git apply %s", vim.fn.shellescape(worktree_path), vim.fn.shellescape(patch_file))
+    )
+    if vim.v.shell_error == 0 then
+      vim.notify("✅ 変更の適用完了", vim.log.levels.INFO)
+      vim.fn.system("rm -f " .. patch_file)
+    else
+      vim.notify(
+        "⚠️ パッチ適用に失敗（手動で適用してください: " .. patch_file .. "）",
+        vim.log.levels.WARN
+      )
+    end
+  end
+
+  -- 依存関係インストールをバックグラウンドで実行
+  if vim.fn.filereadable(worktree_path .. "/package.json") == 1 then
+    vim.notify("📦 依存関係をバックグラウンドでインストール中...", vim.log.levels.INFO)
+    vim.fn.system(
+      string.format("cd %s && %s i > /dev/null 2>&1 &", vim.fn.shellescape(worktree_path), CONFIG.package_manager)
+    )
+  end
+
+  vim.notify("✅ セットアップ完了！", vim.log.levels.INFO)
+end
+
 -- タブ内でセットアップスクリプト実行
 function M.execute_setup_in_tab(worktree_path, git_root, patch_file, dot_files)
   local patch_section = ""
@@ -381,6 +569,18 @@ set -e
 
 echo "⚙️ 環境セットアップ中..."
 cd "%s"
+
+# グローバルgitignore設定
+echo "📋 グローバル.gitignore設定中..."
+if [ -f ~/.gitignore_global ]; then
+  # グローバル設定
+  git config core.excludesFile ~/.gitignore_global
+  # ローカルにも.gitignore_globalをコピー（参照用）
+  cp ~/.gitignore_global .gitignore_global 2>/dev/null || true
+  echo "✅ グローバル.gitignore設定完了"
+else
+  echo "⚠️ ~/.gitignore_global が見つかりません"
+fi
 
 # .vscode/.cursorディレクトリコピー
 if [ -d "%s/.vscode" ]; then
@@ -448,18 +648,19 @@ echo "📂 移動先: %s"
     file:close()
 
     -- iTerm2の最前面のタブでスクリプトを実行するAppleScript
+    local escaped_script = temp_script:gsub("'", "\\'")
     local applescript = string.format(
       [[
 tell application "iTerm"
     if (count of windows) > 0 then
         tell current session of current tab of current window
-            write text "bash %s && echo 'スクリプト実行完了' && rm -f %s"
+            write text "bash '%s' && echo 'セットアップ完了' && rm -f '%s'"
         end tell
     end if
 end tell
 ]],
-      temp_script,
-      temp_script
+      escaped_script,
+      escaped_script
     )
 
     local applescript_file = "/tmp/nvim-iterm-script-" .. os.time() .. ".scpt"
@@ -470,13 +671,18 @@ end tell
 
       -- AppleScriptを実行（少し遅延を入れてタブが確実に開かれてから実行）
       vim.defer_fn(function()
-        vim.system({ "osascript", applescript_file }, {}, function()
-          vim.schedule(function()
-            -- AppleScriptファイルを削除
-            vim.fn.system("rm -f " .. applescript_file)
-          end)
+        local result = vim.system({ "osascript", applescript_file }, { timeout = 5000 })
+        vim.schedule(function()
+          -- AppleScriptファイルを削除
+          vim.fn.system("rm -f " .. applescript_file)
+          if result and result.code ~= 0 then
+            vim.notify(
+              "⚠️ AppleScript実行でエラーが発生しましたが、セットアップは完了しています",
+              vim.log.levels.WARN
+            )
+          end
         end)
-      end, 1000) -- 1秒待機
+      end, 1500) -- 1.5秒待機
     else
       vim.notify("❌ AppleScript作成に失敗", vim.log.levels.ERROR)
       vim.fn.system("rm -f " .. temp_script)
@@ -575,15 +781,29 @@ local function switch_worktree(target_path, branch_name)
     return
   end
 
+  -- 現在のバッファの状態を確認
+  local current_bufnr = vim.api.nvim_get_current_buf()
+  local is_modifiable = vim.api.nvim_get_option_value("modifiable", { buf = current_bufnr })
+
+  if not is_modifiable then
+    vim.api.nvim_set_option_value("modifiable", true, { buf = current_bufnr })
+  end
+
   vim.cmd("cd " .. vim.fn.fnameescape(target_path))
 
-  -- Neo-tree更新
+  -- Neo-tree更新（エラーハンドリング強化）
   vim.schedule(function()
     vim.defer_fn(function()
       pcall(function()
-        vim.cmd("Neotree filesystem refresh")
+        -- Neo-treeを閉じてから新しいディレクトリで開く
+        vim.cmd("Neotree close")
+        vim.defer_fn(function()
+          pcall(function()
+            vim.cmd("Neotree filesystem reveal dir=" .. vim.fn.fnameescape(target_path))
+          end)
+        end, 200)
       end)
-    end, 200)
+    end, 300)
   end)
 end
 
@@ -813,7 +1033,11 @@ local function show_worktree_list()
   })
 end
 
--- プラグイン設定
+--[[
+機能概要: Git Worktree管理機能（作成・切り替え・削除）
+設定内容: plenary.nvimを使用したカスタムワークツリー機能
+キーバインド: <leader>gW (作成), <leader>gw (一覧・切り替え・削除)
+--]]
 return {
   {
     "nvim-lua/plenary.nvim",
