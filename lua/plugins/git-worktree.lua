@@ -70,7 +70,7 @@ local function create_worktree()
       -- 未コミット変更をチェック（追跡ファイルのみ）
       local has_changes = vim.fn.system("git diff HEAD --name-only"):gsub("\n", "") ~= ""
       local patch_file = nil
-      
+
       if has_changes then
         vim.notify("📦 未コミット変更をパッチとして保存中...", vim.log.levels.INFO)
         -- 現在の変更をパッチファイルに保存（追跡ファイルのみ）
@@ -84,19 +84,23 @@ local function create_worktree()
           patch_file = nil
         end
       end
-      
+
       -- プロジェクト固有のドットファイルのコピー準備
       local dot_files = {}
       -- .gitignoreされているが、プロジェクトルートにあるすべてのドットファイルを収集
       -- （ただし、.gitと.DS_Storeは除外）
-      local all_dotfiles = vim.fn.system([[
+      local all_dotfiles = vim.fn
+        .system([[
         ls -a | grep '^\.' | grep -v '^\.git$' | grep -v '^\.DS_Store' | grep -v '^\.$' | grep -v '^\.\.$' | grep -v '/$'
-      ]]):gsub("\n", " ")
-      
+      ]])
+        :gsub("\n", " ")
+
       if all_dotfiles ~= "" then
         dot_files = vim.split(all_dotfiles, " ")
         -- 空文字列を除去
-        dot_files = vim.tbl_filter(function(f) return f ~= "" end, dot_files)
+        dot_files = vim.tbl_filter(function(f)
+          return f ~= ""
+        end, dot_files)
       end
 
       -- Git worktree作成
@@ -133,7 +137,7 @@ local function create_worktree()
       -- 先にiTerm2タブを開く
       vim.notify("📱 iTerm2タブを開いています...", vim.log.levels.INFO)
       vim.fn.system(string.format("cd %s && open -a iTerm.app .", vim.fn.shellescape(worktree_path)))
-      
+
       -- セットアップスクリプト作成・タブ内実行
       M.execute_setup_in_tab(worktree_path, git_root, patch_file, dot_files)
     end)
@@ -144,7 +148,8 @@ end
 function M.execute_setup_script(worktree_path, git_root, patch_file, dot_files)
   local patch_section = ""
   if patch_file then
-    patch_section = string.format([[
+    patch_section = string.format(
+      [[
 
 # パッチファイルを適用（追跡ファイルの変更のみ）
 if [ -f "%s" ]; then
@@ -157,29 +162,48 @@ if [ -f "%s" ]; then
     echo "⚠️  パッチ適用に失敗（手動で適用してください: %s）"
   fi
 fi
-]], patch_file, patch_file, patch_file, patch_file)
+]],
+      patch_file,
+      patch_file,
+      patch_file,
+      patch_file
+    )
   end
-  
+
   -- ドットファイルのコピーセクション
   local dot_files_section = ""
   if dot_files and #dot_files > 0 then
     local copy_commands = {}
     for _, file in ipairs(dot_files) do
       if file ~= "" then
-        table.insert(copy_commands, string.format([[
+        table.insert(
+          copy_commands,
+          string.format(
+            [[
 if [ -f "%s/%s" ]; then
   echo "📋 %s をコピー中..."
   cp "%s/%s" "%s"
   echo "✅ %s をコピー完了"
-fi]], git_root, file, file, git_root, file, file, file))
+fi]],
+            git_root,
+            file,
+            file,
+            git_root,
+            file,
+            file,
+            file
+          )
+        )
       end
     end
     if #copy_commands > 0 then
-      dot_files_section = "\n# プロジェクト固有のドットファイルをコピー\n" .. table.concat(copy_commands, "\n")
+      dot_files_section = "\n# プロジェクト固有のドットファイルをコピー\n"
+        .. table.concat(copy_commands, "\n")
     end
   end
 
-  local setup_script = string.format([[
+  local setup_script = string.format(
+    [[
 #!/bin/bash
 set -e
 
@@ -232,7 +256,19 @@ fi
 echo "✅ セットアップ完了！"
 echo "📂 移動先: %s"
 %s%s
-]], worktree_path, git_root, git_root, git_root, git_root, git_root, git_root, worktree_path, patch_section, dot_files_section, worktree_path)
+]],
+    worktree_path,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    worktree_path,
+    patch_section,
+    dot_files_section,
+    worktree_path
+  )
 
   local temp_script = "/tmp/nvim-worktree-setup-" .. os.time() .. ".sh"
   local file = io.open(temp_script, "w")
@@ -256,7 +292,8 @@ end
 function M.execute_setup_in_tab(worktree_path, git_root, patch_file, dot_files)
   local patch_section = ""
   if patch_file then
-    patch_section = string.format([[
+    patch_section = string.format(
+      [[
 
 # パッチファイルを適用（追跡ファイルの変更のみ）
 if [ -f "%s" ]; then
@@ -269,29 +306,48 @@ if [ -f "%s" ]; then
     echo "⚠️  パッチ適用に失敗（手動で適用してください: %s）"
   fi
 fi
-]], patch_file, patch_file, patch_file, patch_file)
+]],
+      patch_file,
+      patch_file,
+      patch_file,
+      patch_file
+    )
   end
-  
+
   -- ドットファイルのコピーセクション
   local dot_files_section = ""
   if dot_files and #dot_files > 0 then
     local copy_commands = {}
     for _, file in ipairs(dot_files) do
       if file ~= "" then
-        table.insert(copy_commands, string.format([[
+        table.insert(
+          copy_commands,
+          string.format(
+            [[
 if [ -f "%s/%s" ]; then
   echo "📋 %s をコピー中..."
   cp "%s/%s" "%s"
   echo "✅ %s をコピー完了"
-fi]], git_root, file, file, git_root, file, file, file))
+fi]],
+            git_root,
+            file,
+            file,
+            git_root,
+            file,
+            file,
+            file
+          )
+        )
       end
     end
     if #copy_commands > 0 then
-      dot_files_section = "\n# プロジェクト固有のドットファイルをコピー\n" .. table.concat(copy_commands, "\n")
+      dot_files_section = "\n# プロジェクト固有のドットファイルをコピー\n"
+        .. table.concat(copy_commands, "\n")
     end
   end
 
-  local setup_script = string.format([[
+  local setup_script = string.format(
+    [[
 #!/bin/bash
 set -e
 
@@ -344,16 +400,28 @@ fi
 echo "✅ セットアップ完了！"
 echo "📂 移動先: %s"
 %s%s
-]], worktree_path, git_root, git_root, git_root, git_root, git_root, git_root, worktree_path, patch_section, dot_files_section)
+]],
+    worktree_path,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    git_root,
+    worktree_path,
+    patch_section,
+    dot_files_section
+  )
 
   local temp_script = "/tmp/nvim-worktree-setup-" .. os.time() .. ".sh"
   local file = io.open(temp_script, "w")
   if file then
     file:write(setup_script)
     file:close()
-    
+
     -- iTerm2の最前面のタブでスクリプトを実行するAppleScript
-    local applescript = string.format([[
+    local applescript = string.format(
+      [[
 tell application "iTerm"
     if (count of windows) > 0 then
         tell current session of current tab of current window
@@ -361,16 +429,19 @@ tell application "iTerm"
         end tell
     end if
 end tell
-]], temp_script, temp_script)
-    
+]],
+      temp_script,
+      temp_script
+    )
+
     local applescript_file = "/tmp/nvim-iterm-script-" .. os.time() .. ".scpt"
     local script_file = io.open(applescript_file, "w")
     if script_file then
       script_file:write(applescript)
       script_file:close()
-      
+
       vim.notify("🚀 iTerm2タブでセットアップスクリプトを実行中...", vim.log.levels.INFO)
-      
+
       -- AppleScriptを実行（少し遅延を入れてタブが確実に開かれてから実行）
       vim.defer_fn(function()
         vim.system({ "osascript", applescript_file }, {}, function()
@@ -396,31 +467,20 @@ local function get_worktree_list()
     return {}
   end
 
-  local worktree_list = {}
+  local main_worktree = nil
+  local other_worktrees = {}
   local git_root = get_git_root()
   local current_path = vim.fn.getcwd()
-  local current_branch = get_current_branch()
-
-  -- メインプロジェクトを追加
-  if git_root and current_branch ~= "" then
-    local is_main_current = (current_path == git_root) or (not current_path:match("%-worktrees"))
-    local current_mark = is_main_current and " 👈 current" or ""
-
-    table.insert(worktree_list, {
-      display = string.format("🌿 %s (main project)%s", current_branch, current_mark),
-      path = git_root,
-      branch = current_branch,
-    })
-  end
-
-  -- worktreeリストを解析
+  -- worktreeリストを解析（順序を保持）
   for line in worktrees:gmatch("[^\r\n]+") do
     if line ~= "" then
       local path, hash, branch = line:match("^(.-)%s+([%w%d]+)%s+%[(.-)%]")
       if not branch then
         path, hash = line:match("^(.-)%s+([%w%d]+)%s+%(")
         if path then
-          local bare_branch = vim.fn.system("cd " .. vim.fn.shellescape(path) .. " && git branch --show-current 2>/dev/null"):gsub("\n", "")
+          local bare_branch = vim.fn
+            .system("cd " .. vim.fn.shellescape(path) .. " && git branch --show-current 2>/dev/null")
+            :gsub("\n", "")
           branch = bare_branch ~= "" and bare_branch or "main"
         end
       end
@@ -428,17 +488,31 @@ local function get_worktree_list()
       if path and branch then
         path = path:gsub("^%s*", ""):gsub("%s*$", "")
 
-        -- メインプロジェクトと重複チェック
-        if path ~= git_root then
+        local current_mark = (current_path == path) and " 👈 current" or ""
+        local is_main = path == git_root or (not path:match("%-worktrees/"))
+
+        if is_main then
+          -- メインプロジェクト（複数あっても最初のものを採用）
+          if not main_worktree then
+            main_worktree = {
+              display = string.format("🌿 %s (main project)%s", branch, current_mark),
+              text = string.format("🌿 %s (main project)%s", branch, current_mark),
+              file = path,
+              path = path,
+              branch = branch,
+            }
+          end
+        else
+          -- その他のworktree（順番通りに追加）
           local display_path = path:gsub("^" .. vim.pesc(git_root), ".")
           if display_path == path then
             display_path = vim.fn.fnamemodify(path, ":t")
           end
 
-          local current_mark = (current_path == path) and " 👈 current" or ""
-
-          table.insert(worktree_list, {
+          table.insert(other_worktrees, {
             display = string.format("🌿 %s (%s)%s", branch, display_path, current_mark),
+            text = string.format("🌿 %s (%s)%s", branch, display_path, current_mark),
+            file = path,
             path = path,
             branch = branch,
           })
@@ -447,7 +521,20 @@ local function get_worktree_list()
     end
   end
 
-  return worktree_list
+  -- 結果を組み立て（mainを先頭に、他は元の順序のまま）
+  local result = {}
+
+  -- mainを先頭に追加
+  if main_worktree then
+    table.insert(result, main_worktree)
+  end
+
+  -- その他のworktreeを逆順で追加（新しいものが上に）
+  for i = #other_worktrees, 1, -1 do
+    table.insert(result, other_worktrees[i])
+  end
+
+  return result
 end
 
 -- Worktree切り替え
@@ -491,7 +578,10 @@ local function delete_worktree_async(path, branch_name)
               if branch_result.code == 0 then
                 vim.notify("🗑️ Worktreeとブランチ削除完了: " .. branch_name, vim.log.levels.INFO)
               else
-                vim.notify("🗑️ Worktree削除完了（ブランチ削除スキップ）: " .. branch_name, vim.log.levels.INFO)
+                vim.notify(
+                  "🗑️ Worktree削除完了（ブランチ削除スキップ）: " .. branch_name,
+                  vim.log.levels.INFO
+                )
               end
             end)
           end)
@@ -504,9 +594,15 @@ local function delete_worktree_async(path, branch_name)
               vim.system({ "git", "branch", "-D", branch_name }, {}, function(branch_result)
                 vim.schedule(function()
                   if branch_result.code == 0 then
-                    vim.notify("🗑️ 修復・削除完了（ブランチ含む）: " .. branch_name, vim.log.levels.INFO)
+                    vim.notify(
+                      "🗑️ 修復・削除完了（ブランチ含む）: " .. branch_name,
+                      vim.log.levels.INFO
+                    )
                   else
-                    vim.notify("🗑️ 修復・削除完了（ブランチ削除スキップ）: " .. branch_name, vim.log.levels.INFO)
+                    vim.notify(
+                      "🗑️ 修復・削除完了（ブランチ削除スキップ）: " .. branch_name,
+                      vim.log.levels.INFO
+                    )
                   end
                 end)
               end)
@@ -518,6 +614,81 @@ local function delete_worktree_async(path, branch_name)
   end)
 end
 
+-- main以外のWorktree一括削除
+local function delete_all_worktrees_except_main()
+  local worktree_list = get_worktree_list()
+  local git_root = get_git_root()
+
+  if not git_root then
+    vim.notify("❌ Gitリポジトリではありません", vim.log.levels.ERROR)
+    return
+  end
+
+  -- main以外のworktreeを収集
+  local worktrees_to_delete = {}
+  for _, worktree in ipairs(worktree_list) do
+    if worktree.path ~= git_root then
+      table.insert(worktrees_to_delete, worktree)
+    end
+  end
+
+  if #worktrees_to_delete == 0 then
+    vim.notify("🌳 削除対象のWorktreeがありません", vim.log.levels.INFO)
+    return
+  end
+
+  -- 削除確認リスト表示
+  local delete_list = {}
+  for _, worktree in ipairs(worktrees_to_delete) do
+    table.insert(delete_list, "  🗑️ " .. worktree.branch .. " (" .. vim.fn.fnamemodify(worktree.path, ":t") .. ")")
+  end
+
+  local message = string.format(
+    "🚨 main以外の全Worktreeを削除します:\n\n%s\n\n合計 %d個のWorktreeを削除します。\nこの操作は元に戻せません！\n\n続行しますか? [y/N]",
+    table.concat(delete_list, "\n"),
+    #worktrees_to_delete
+  )
+
+  vim.notify(message, vim.log.levels.WARN)
+
+  -- 確認処理
+  local function cleanup_and_execute(should_delete)
+    pcall(vim.keymap.del, "n", "y", { buffer = true })
+    pcall(vim.keymap.del, "n", "Y", { buffer = true })
+    pcall(vim.keymap.del, "n", "N", { buffer = true })
+    pcall(vim.keymap.del, "n", "<Esc>", { buffer = true })
+
+    if should_delete then
+      vim.notify("🔄 " .. #worktrees_to_delete .. "個のWorktreeを削除中...", vim.log.levels.INFO)
+
+      -- 逐次削除実行
+      local completed = 0
+      for _, worktree in ipairs(worktrees_to_delete) do
+        delete_worktree_async(worktree.path, worktree.branch)
+        completed = completed + 1
+      end
+
+      vim.notify("✅ " .. completed .. "個のWorktree削除処理を開始しました", vim.log.levels.INFO)
+    else
+      vim.notify("削除をキャンセルしました", vim.log.levels.INFO)
+    end
+  end
+
+  -- キーマッピング設定
+  vim.keymap.set("n", "y", function()
+    cleanup_and_execute(true)
+  end, { buffer = true, nowait = true })
+  vim.keymap.set("n", "Y", function()
+    cleanup_and_execute(true)
+  end, { buffer = true, nowait = true })
+  vim.keymap.set("n", "N", function()
+    cleanup_and_execute(false)
+  end, { buffer = true, nowait = true })
+  vim.keymap.set("n", "<Esc>", function()
+    cleanup_and_execute(false)
+  end, { buffer = true, nowait = true })
+end
+
 -- Worktree一覧・切り替え・削除UI
 local function show_worktree_list()
   local worktree_list = get_worktree_list()
@@ -527,82 +698,104 @@ local function show_worktree_list()
     return
   end
 
-  -- Telescope UI
-  require("telescope.pickers").new({}, {
-    prompt_title = "🌳 Git Worktrees",
-    finder = require("telescope.finders").new_table({
-      results = worktree_list,
-      entry_maker = function(entry)
-        return {
-          value = entry,
-          display = entry.display,
-          ordinal = entry.branch .. " " .. entry.path,
-        }
-      end,
-    }),
-    sorter = require("telescope.config").values.generic_sorter({}),
-    previewer = false,
-    attach_mappings = function(prompt_bufnr, map)
-      local actions = require("telescope.actions")
-      local action_state = require("telescope.actions.state")
-
-      -- Enter: 切り替え
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-
-        if not selection or not selection.value then
-          vim.notify("❌ Worktreeが選択されていません", vim.log.levels.WARN)
-          return
-        end
-
-        switch_worktree(selection.value.path, selection.value.branch)
-      end)
-
-      -- Ctrl+D: 削除（単一キー確認）
-      map("i", "<C-d>", function()
-        local selection = action_state.get_selected_entry()
-        if not selection or not selection.value then
-          vim.notify("❌ Worktreeが選択されていません", vim.log.levels.WARN)
+  -- Snacks picker UI
+  Snacks.picker({
+    source = "static",
+    items = worktree_list,
+    title = "🌳 Git Worktrees [Enter: 切り替え | Ctrl-d: 削除 | D: 一括削除 | ?: ヘルプ]",
+    format = function(item, picker)
+      return { { item.display, "Normal" } }
+    end,
+    layout = { preset = "select" }, -- selectプリセットを使用（中央表示、プレビューなし）
+    matcher = { sort_empty = false }, -- 空の検索時はソートしない（元の順序を保持）
+    sort = false, -- 完全にソートを無効化
+    actions = {
+      worktree_delete = function(picker)
+        local item = picker:current()
+        if not item then
           return
         end
 
         -- メインプロジェクト（worktree以外）は削除不可
-        if selection.value.path == get_git_root() then
+        if item.path == get_git_root() then
           vim.notify("⚠️ メインプロジェクトは削除できません", vim.log.levels.WARN)
           return
         end
 
-        actions.close(prompt_bufnr)
+        picker:close()
 
         -- 単一キー確認
         vim.schedule(function()
-          vim.notify("🗑️ Worktree '" .. selection.value.branch .. "' を削除しますか? [y/N]", vim.log.levels.WARN)
-          
-          -- 一時的なキーマッピングを設定
+          vim.notify("🗑️ Worktree '" .. item.branch .. "' を削除しますか? [y/N]", vim.log.levels.WARN)
+
           local function cleanup_and_execute(should_delete)
-            -- キーマッピングをクリア
-            pcall(vim.keymap.del, 'n', 'y', { buffer = true })
-            pcall(vim.keymap.del, 'n', 'N', { buffer = true })
-            pcall(vim.keymap.del, 'n', '<Esc>', { buffer = true })
-            
+            pcall(vim.keymap.del, "n", "y", { buffer = true })
+            pcall(vim.keymap.del, "n", "N", { buffer = true })
+            pcall(vim.keymap.del, "n", "<Esc>", { buffer = true })
+
             if should_delete then
-              delete_worktree_async(selection.value.path, selection.value.branch)
+              delete_worktree_async(item.path, item.branch)
             else
               vim.notify("削除をキャンセルしました", vim.log.levels.INFO)
             end
           end
-          
-          -- 単一キーで応答（Enterが不要）
-          vim.keymap.set('n', 'y', function() cleanup_and_execute(true) end, { buffer = true, nowait = true })
-          vim.keymap.set('n', 'N', function() cleanup_and_execute(false) end, { buffer = true, nowait = true })
-          vim.keymap.set('n', '<Esc>', function() cleanup_and_execute(false) end, { buffer = true, nowait = true })
-        end)
-      end)
 
-      return true
+          vim.keymap.set("n", "y", function()
+            cleanup_and_execute(true)
+          end, { buffer = true, nowait = true })
+          vim.keymap.set("n", "N", function()
+            cleanup_and_execute(false)
+          end, { buffer = true, nowait = true })
+          vim.keymap.set("n", "<Esc>", function()
+            cleanup_and_execute(false)
+          end, { buffer = true, nowait = true })
+        end)
+      end,
+      worktree_delete_all = function(picker)
+        picker:close()
+        vim.schedule(function()
+          delete_all_worktrees_except_main()
+        end)
+      end,
+    },
+    win = {
+      input = {
+        keys = {
+          ["<c-d>"] = {
+            "worktree_delete",
+            mode = { "n", "i" },
+          },
+          ["D"] = {
+            "worktree_delete_all",
+            mode = { "n", "i" },
+          },
+          ["?"] = {
+            function(picker)
+              vim.notify(
+                "🌳 Git Worktree操作ヘルプ:\n\n⌨️  キー操作:\n  Enter      : 選択したWorktreeに切り替え\n  Ctrl-d     : 選択したWorktreeを削除 (確認あり)\n  d          : 選択したWorktreeを削除 (確認あり)\n  D          : main以外の全Worktreeを削除 (確認あり)\n  Esc        : ピッカーを閉じる\n  ?          : このヘルプを表示\n\n🚀 機能:\n  • Worktree間の高速切り替え\n  • 個別・一括での安全な削除\n  • メインプロジェクトは削除不可\n\n💡 ヒント:\n  削除時は「y」で実行、「N」でキャンセル",
+                vim.log.levels.INFO
+              )
+            end,
+            mode = { "n", "i" },
+          },
+        },
+      },
+      list = {
+        keys = {
+          ["d"] = "worktree_delete",
+          ["D"] = "worktree_delete_all",
+        },
+      },
+    },
+    confirm = function(picker)
+      local item = picker:current()
+      if not item then
+        vim.notify("❌ Worktreeが選択されていません", vim.log.levels.WARN)
+        return
+      end
+      switch_worktree(item.path, item.branch)
     end,
-  }):find()
+  })
 end
 
 -- プラグイン設定

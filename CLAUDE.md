@@ -13,8 +13,10 @@ Claude Code (claude.ai/code) がこのNeovim設定リポジトリで作業する
 
 ### 実装前の必須事項
 - [ ] **バックアップ作成**: `git stash push -m "backup_$(date +%Y%m%d_%H%M%S)"`
-- [ ] **Context7での公式ドキュメント確認**: 新規プラグイン実装時は必ず最初に実行
-  - 例: 「Context7で[プラグイン名]の公式ドキュメントを取得して」
+- [ ] **Context7での公式ドキュメント確認**: 必ず最初に実行（新規実装・バグ対応・設定変更すべて）
+  - 新規実装: 「Context7で[プラグイン名]の公式ドキュメントを取得して」
+  - バグ対応: 「Context7で[プラグイン名]のトラブルシューティングを確認して」
+  - 設定変更: 「Context7で[プラグイン名]の設定オプションを確認して」
 
 ### 実装パターンの厳格遵守
 - [ ] **LazyVim設定継承パターン必須**: `opts = function(_, opts)` 形式のみ使用
@@ -86,25 +88,42 @@ return {
 - [ ] 段階的テスト
 
 ### フェーズ3: 問題解決
+- [ ] **Context7で関連プラグインの情報確認**（バグ対応時は必須）
 - [ ] エラー発生時はユーザーに`:messages`の内容を依頼
 - [ ] デバッグ出力から原因特定
 - [ ] 修正と再テスト
 
 ### フェーズ4: クリーンアップ
 - [ ] デバッグコードの完全削除
+- [ ] **Styluaフォーマット実行**: `stylua lua/plugins/[modified-file].lua`
 - [ ] 実装パターンの最終確認
 - [ ] パフォーマンステスト: `nvim --startuptime /tmp/startup.log +qall`
 </workflow>
+
+## 🔧 コード品質管理
+
+### Lua Linter/Formatter
+- **Stylua**: Rustベースの高速フォーマッター（必須使用）
+- **Selene**: 静的解析・型チェック（推奨）
+- **インストール**: `brew install stylua selene`
+
+### 必須実行タイミング
+- **プラグインコード変更時**: 必ずstyluaフォーマットを実行
+- **実装完了時**: 品質チェックリストでフォーマット確認
+- **コミット前**: 構文エラー・スタイル確認
 
 ## 🛠️ トラブルシューティング
 
 <troubleshooting>
 ### エラー診断手順
-1. **ログ確認**: `:messages`
-2. **設定確認**: `:lua print(vim.inspect(require("plugin.config")))`
-3. **リロード**: `:Lazy reload [plugin-name]`
+1. **Context7確認**: 関連プラグインの公式情報・トラブルシューティング確認
+2. **構文チェック**: `stylua --check lua/plugins/[file].lua`
+3. **ログ確認**: `:messages`
+4. **設定確認**: `:lua print(vim.inspect(require("plugin.config")))`
+5. **リロード**: `:Lazy reload [plugin-name]`
 
 ### よくある問題と解決法
+- **構文エラー**: styluaでチェック・フォーマット実行
 - **設定が反映されない**: LazyVim設定継承パターンの確認
 - **起動エラー**: バックアップから復旧 `git stash apply`
 - **パフォーマンス問題**: 遅延読み込み設定の確認
@@ -121,6 +140,7 @@ return {
 - [ ] 機能概要コメント記載
 - [ ] 遅延読み込み設定済み
 - [ ] デバッグコード削除済み
+- [ ] **Styluaフォーマット適用済み**: `stylua lua/plugins/[file].lua`
 - [ ] 動作確認: `nvim --headless -c "lua print('OK')" -c "qall"`
 </checklist>
 
@@ -138,5 +158,5 @@ return {
 
 ---
 
-YOU MUST: 実装は必ずContext7から開始し、エラー前提でデバッグ機能を実装すること。
+YOU MUST: すべての作業（新規実装・バグ対応・設定変更）は必ずContext7から開始すること。
 CRITICAL: LazyVim設定継承パターンを破壊する実装は絶対禁止。

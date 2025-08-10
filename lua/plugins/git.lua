@@ -1,5 +1,5 @@
 return {
-  -- Telescopeを使ったGit操作の拡張
+  -- Git操作の拡張（Telescopeとsnacks併用）
   {
     "nvim-telescope/telescope.nvim",
     keys = {
@@ -34,44 +34,40 @@ return {
           vim.notify("Only " .. base_branch .. " branch exists or all branches are merged", vim.log.levels.INFO)
         end
         
-        -- Telescopeで表示
-        require('telescope.pickers').new({}, {
-          prompt_title = "Git Branches (unmerged + " .. base_branch .. ")",
-          finder = require('telescope.finders').new_table({
-            results = branch_list,
-          }),
-          sorter = require('telescope.config').values.generic_sorter({}),
-          attach_mappings = function(_, map)
-            local actions = require('telescope.actions')
-            actions.select_default:replace(function(prompt_bufnr)
-              local selection = require('telescope.actions.state').get_selected_entry()
-              actions.close(prompt_bufnr)
-              if selection then
-                vim.cmd("Git checkout " .. selection.value)
-                vim.notify("Switched to " .. selection.value, vim.log.levels.INFO)
-              end
-            end)
-            return true
+        -- Snacksで表示
+        local items = {}
+        for _, branch in ipairs(branch_list) do
+          table.insert(items, {
+            text = branch,
+            file = vim.fn.getcwd(), -- 現在のディレクトリをfileとして設定
+            branch = branch,
+          })
+        end
+        
+        Snacks.picker({
+          source = "static",
+          items = items,
+          title = "Git Branches (unmerged + " .. base_branch .. ")",
+          format = function(item, picker)
+            return { { item.text, "Normal" } }
           end,
-        }):find()
+          confirm = function(picker)
+            local item = picker:current()
+            if item then
+              vim.cmd("Git checkout " .. item.branch)
+              vim.notify("Switched to " .. item.branch, vim.log.levels.INFO)
+            end
+          end,
+        })
       end, desc = "Git Branches (main + unmerged)" },
       
       -- 全ローカルブランチ（たまに使う）
-      { "<leader>gB", function()
-        require('telescope.builtin').git_branches({
-          show_remote_tracking_branches = false,
-          sort_mru = true,
-        })
-      end, desc = "Git Branches (all local)" },
+      { "<leader>gB", "<cmd>Telescope git_branches<cr>", desc = "Git Branches (all local)" },
       { "<leader>gs", "<cmd>Telescope git_status<cr>", desc = "Git Status" }, 
       { "<leader>gS", "<cmd>Telescope git_stash<cr>", desc = "Git Stash" },
       
       -- リモートブランチ操作
-      { "<leader>gr", function()
-        require('telescope.builtin').git_branches({
-          show_remote_tracking_branches = true,
-        })
-      end, desc = "Remote Branches" },
+      { "<leader>gr", "<cmd>Telescope git_branches<cr>", desc = "Remote Branches" },
       
       -- mainブランチへのクイック切り替え
       { "<leader>gm", function()
@@ -83,9 +79,7 @@ return {
       { "<leader>gf", function()
         vim.cmd("Git fetch --all")
         vim.defer_fn(function()
-          require('telescope.builtin').git_branches({
-            show_remote_tracking_branches = true,
-          })
+          vim.cmd("Telescope git_branches")
         end, 1000)
       end, desc = "Fetch & Show Branches" },
     },
