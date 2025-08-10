@@ -4,7 +4,12 @@ local M = {}
 
 -- 設定
 local CONFIG = {
-  setup_timeout = 60000, -- スクリプト削除タイムアウト
+  setup_timeout = 60000,
+  terminal_app = "iTerm.app",
+  package_manager = "pnpm",
+  excluded_dotfiles = { ".git", ".DS_Store", ".", ".." },
+  project_dirs = { ".vscode", ".cursor" },
+  project_files = { ".npmrc" },
 }
 
 -- Worktree配置パスを生成（ベストプラクティス準拠）
@@ -21,6 +26,48 @@ end
 
 local function get_current_branch()
   return vim.fn.system("git branch --show-current"):gsub("\n", "")
+end
+
+local function has_uncommitted_changes()
+  return vim.fn.system("git diff HEAD --name-only"):gsub("\n", "") ~= ""
+end
+
+local function create_patch_file()
+  local has_changes = has_uncommitted_changes()
+  if not has_changes then
+    return nil
+  end
+
+  vim.notify("📦 未コミット変更をパッチとして保存中...", vim.log.levels.INFO)
+  local patch_file = "/tmp/worktree-patch-" .. os.time() .. ".patch"
+  vim.fn.system("git diff HEAD > " .. patch_file)
+  local patch_size = vim.fn.getfsize(patch_file)
+
+  return patch_size > 0 and patch_file or nil
+end
+
+-- ファイル操作のユーティリティ関数
+local function collect_dotfiles()
+  local dot_files = {}
+  local exclude_pattern = table.concat(
+    vim.tbl_map(function(item)
+      return "grep -v '^" .. vim.pesc(item) .. "$'"
+    end, CONFIG.excluded_dotfiles),
+    " | "
+  )
+
+  local all_dotfiles =
+    vim.fn.system(string.format("ls -a | grep '^\\.' | %s | grep -v '/$'", exclude_pattern)):gsub("\n", " ")
+
+  if all_dotfiles ~= "" then
+    dot_files = vim.split(all_dotfiles, " ")
+    -- 空文字列を除去
+    dot_files = vim.tbl_filter(function(f)
+      return f ~= ""
+    end, dot_files)
+  end
+
+  return dot_files
 end
 
 -- Worktree作成機能
@@ -68,38 +115,10 @@ local function create_worktree()
       end
 
       -- 未コミット変更をチェック（追跡ファイルのみ）
-      local has_changes = vim.fn.system("git diff HEAD --name-only"):gsub("\n", "") ~= ""
-      local patch_file = nil
-
-      if has_changes then
-        vim.notify("📦 未コミット変更をパッチとして保存中...", vim.log.levels.INFO)
-        -- 現在の変更をパッチファイルに保存（追跡ファイルのみ）
-        patch_file = "/tmp/worktree-patch-" .. os.time() .. ".patch"
-        -- ステージングされた変更と未ステージの変更を両方含める（追跡ファイルのみ）
-        vim.fn.system("git diff HEAD > " .. patch_file)
-        local patch_size = vim.fn.getfsize(patch_file)
-        if patch_size <= 0 then
-          patch_file = nil
-        end
-      end
+      local patch_file = create_patch_file()
 
       -- プロジェクト固有のドットファイルのコピー準備
-      local dot_files = {}
-      -- .gitignoreされているが、プロジェクトルートにあるすべてのドットファイルを収集
-      -- （ただし、.gitと.DS_Storeは除外）
-      local all_dotfiles = vim.fn
-        .system([[
-        ls -a | grep '^\.' | grep -v '^\.git$' | grep -v '^\.DS_Store' | grep -v '^\.$' | grep -v '^\.\.$' | grep -v '/$'
-      ]])
-        :gsub("\n", " ")
-
-      if all_dotfiles ~= "" then
-        dot_files = vim.split(all_dotfiles, " ")
-        -- 空文字列を除去
-        dot_files = vim.tbl_filter(function(f)
-          return f ~= ""
-        end, dot_files)
-      end
+      local dot_files = collect_dotfiles()
 
       -- Git worktree作成
 
@@ -130,7 +149,7 @@ local function create_worktree()
       end
 
       -- 先にiTerm2タブを開く
-      vim.fn.system(string.format("cd %s && open -a iTerm.app .", vim.fn.shellescape(worktree_path)))
+      vim.fn.system(string.format("cd %s && open -a %s .", vim.fn.shellescape(worktree_path), CONFIG.terminal_app))
 
       -- セットアップスクリプト作成・タブ内実行
       M.execute_setup_in_tab(worktree_path, git_root, patch_file, dot_files)
@@ -138,12 +157,13 @@ local function create_worktree()
   end)
 end
 
--- セットアップスクリプト実行
-function M.execute_setup_script(worktree_path, git_root, patch_file, dot_files)
-  local patch_section = ""
-  if patch_file then
-    patch_section = string.format(
-      [[
+-- 共通: パッチセクション生成
+local function generate_patch_section(patch_file)
+  if not patch_file then
+    return ""
+  end
+  return string.format(
+    [[
 
 # パッチファイルを適用（追跡ファイルの変更のみ）
 if [ -f "%s" ]; then
@@ -157,46 +177,56 @@ if [ -f "%s" ]; then
   fi
 fi
 ]],
-      patch_file,
-      patch_file,
-      patch_file,
-      patch_file
-    )
+    patch_file,
+    patch_file,
+    patch_file,
+    patch_file
+  )
+end
+
+-- 共通: ドットファイルセクション生成
+local function generate_dotfiles_section(git_root, dot_files)
+  if not dot_files or #dot_files == 0 then
+    return ""
   end
 
-  -- ドットファイルのコピーセクション
-  local dot_files_section = ""
-  if dot_files and #dot_files > 0 then
-    local copy_commands = {}
-    for _, file in ipairs(dot_files) do
-      if file ~= "" then
-        table.insert(
-          copy_commands,
-          string.format(
-            [[
+  local copy_commands = {}
+  for _, file in ipairs(dot_files) do
+    if file ~= "" then
+      table.insert(
+        copy_commands,
+        string.format(
+          [[
 if [ -f "%s/%s" ]; then
   echo "📋 %s をコピー中..."
   cp "%s/%s" "%s"
   echo "✅ %s をコピー完了"
 fi]],
-            git_root,
-            file,
-            file,
-            git_root,
-            file,
-            file,
-            file
-          )
+          git_root,
+          file,
+          file,
+          git_root,
+          file,
+          file,
+          file
         )
-      end
-    end
-    if #copy_commands > 0 then
-      dot_files_section = "\n# プロジェクト固有のドットファイルをコピー\n"
-        .. table.concat(copy_commands, "\n")
+      )
     end
   end
 
-  local setup_script = string.format(
+  if #copy_commands == 0 then
+    return ""
+  end
+
+  return "\n# プロジェクト固有のドットファイルをコピー\n" .. table.concat(copy_commands, "\n")
+end
+
+-- 共通: セットアップスクリプト生成
+local function generate_setup_script(worktree_path, git_root, patch_file, dot_files)
+  local patch_section = generate_patch_section(patch_file)
+  local dot_files_section = generate_dotfiles_section(git_root, dot_files)
+
+  return string.format(
     [[
 #!/bin/bash
 set -e
@@ -227,7 +257,7 @@ fi
 # 依存関係のインストール
 if [ -f "package.json" ]; then
   echo "📦 依存関係をインストール中..."
-  pnpm i
+  %s i
   echo "✅ 依存関係インストール完了"
 fi
 
@@ -242,7 +272,7 @@ fi
 if [ -d "server" ] && [ -f "server/package.json" ]; then
   echo "🔧 Server側のPrisma生成中..."
   cd server
-  pnpm prisma:generate
+  %s prisma:generate
   cd ..
   echo "✅ Server側のPrisma生成完了"
 fi
@@ -258,11 +288,17 @@ echo "📂 移動先: %s"
     git_root,
     git_root,
     git_root,
+    CONFIG.package_manager,
+    CONFIG.package_manager,
     worktree_path,
     patch_section,
-    dot_files_section,
-    worktree_path
+    dot_files_section
   )
+end
+
+-- セットアップスクリプト実行（ターミナル）
+function M.execute_setup_script(worktree_path, git_root, patch_file, dot_files)
+  local setup_script = generate_setup_script(worktree_path, git_root, patch_file, dot_files)
 
   local temp_script = "/tmp/nvim-worktree-setup-" .. os.time() .. ".sh"
   local file = io.open(temp_script, "w")
@@ -272,7 +308,6 @@ echo "📂 移動先: %s"
 
     vim.cmd("terminal bash " .. temp_script)
 
-    -- スクリプト削除
     vim.defer_fn(function()
       vim.fn.system("rm -f " .. temp_script)
     end, CONFIG.setup_timeout)
@@ -729,7 +764,7 @@ local function show_worktree_list()
         picker:close()
 
         vim.schedule(function()
-          vim.fn.system(string.format("cd %s && open -a iTerm.app .", vim.fn.shellescape(item.path)))
+          vim.fn.system(string.format("cd %s && open -a %s .", vim.fn.shellescape(item.path), CONFIG.terminal_app))
         end)
       end,
     },
