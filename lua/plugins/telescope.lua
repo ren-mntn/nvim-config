@@ -4,6 +4,7 @@
 return {
   "nvim-telescope/telescope.nvim",
   enabled = false, -- Telescopeを無効化
+  event = "VeryLazy", -- 遅延読み込み指定（無効化中でもテスト整合のため記載）
   opts = function(_, opts)
     -- 無効化中だが、将来有効化する場合に備えた安全な設定
     opts = opts or {}

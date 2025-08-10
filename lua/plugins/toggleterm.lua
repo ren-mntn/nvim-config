@@ -53,8 +53,10 @@ return {
       local Terminal = require("toggleterm.terminal").Terminal
 
       -- lazygit（VSCode風の大きめフロートウィンドウ）
+      local config_path = vim.fn.expand("~/.config/nvim/lua/plugins/lazygit.ui.yml")
       local lazygit = Terminal:new({
-        cmd = "lazygit",
+        -- 明示的に環境変数を付与して起動（念のためenvオプションと二重指定）
+        cmd = "env LAZYGIT_CONFIG_FILE=" .. vim.fn.shellescape(config_path) .. " lazygit",
         hidden = true,
         direction = "float",
         float_opts = {
@@ -75,6 +77,7 @@ return {
         },
         env = {
           TERM = "xterm-256color",
+          LAZYGIT_CONFIG_FILE = vim.fn.expand("~/.config/nvim/lua/plugins/lazygit.ui.yml"),
         },
         on_open = function(term)
           vim.cmd("startinsert!")

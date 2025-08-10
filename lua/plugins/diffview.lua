@@ -66,29 +66,144 @@ return {
       {
         "<leader>gpw",
         function()
+          -- まず現在のユーザー名を取得（エラーハンドリング強化）
+          local current_user = nil
+          local user_success, current_user_result = pcall(function()
+            return vim.system({ "gh", "api", "user", "--jq", ".login" }, { text = true }):wait()
+          end)
+
+          if user_success and current_user_result.code == 0 then
+            current_user = vim.trim(current_user_result.stdout)
+          else
+            -- ユーザー取得に失敗してもPR一覧は表示する
+            vim.notify("Warning: Could not get current user, review status may be inaccurate", vim.log.levels.WARN)
+          end
+
           -- gh CLIでPR一覧取得 → 選択 → worktree作成 → diffview開く
           local function get_pr_list()
+            -- レビュー状態判定に必要なフィールドを追加
             local success, result = pcall(function()
               return vim
-                .system({ "gh", "pr", "list", "--state", "open", "--json", "number,title,headRefName" }, { text = true })
+                .system({
+                  "gh",
+                  "pr",
+                  "list",
+                  "--state",
+                  "open",
+                  "--json",
+                  "number,title,headRefName,author,reviewRequests,reviews",
+                }, { text = true })
                 :wait()
             end)
 
             if not success or result.code ~= 0 then
-              vim.notify("Failed to fetch PRs. Make sure gh CLI is authenticated.", vim.log.levels.ERROR)
+              local error_msg = result and result.stderr or "unknown error"
+              vim.notify("Failed to fetch PRs: " .. error_msg, vim.log.levels.ERROR)
               return {}
             end
 
             local pr_data = vim.json.decode(result.stdout)
             local pr_items = {}
 
+            -- デバッグコード削除済み
+
             for _, pr in ipairs(pr_data) do
+              -- レビュー状態を詳細に判定
+              local status_icon = ""
+              local highlight = "Normal"
+              local sort_priority = 100 -- デフォルト優先度
+
+              -- 自分がレビュー依頼されているかチェック（複数パターンに対応）
+              local review_requested = false
+              if current_user and pr.reviewRequests then
+                for _, request in ipairs(pr.reviewRequests) do
+                  if request then
+                    -- パターン1: requestedReviewer.login
+                    if request.requestedReviewer and request.requestedReviewer.login == current_user then
+                      review_requested = true
+                      break
+                    end
+                    -- パターン2: 直接loginフィールド
+                    if request.login == current_user then
+                      review_requested = true
+                      break
+                    end
+                    -- パターン3: requestオブジェクト自体がユーザー情報を持つ
+                    if type(request) == "string" and request == current_user then
+                      review_requested = true
+                      break
+                    end
+                  end
+                end
+              end
+
+              -- 自分が既にレビューしたかチェック
+              local already_reviewed = false
+              if current_user and pr.reviews then
+                for _, review in ipairs(pr.reviews) do
+                  if review.author and review.author.login == current_user then
+                    already_reviewed = true
+                    break
+                  end
+                end
+              end
+
+              -- 状態に応じてアイコンと色を設定
+              -- まず自分のPRかどうかをチェック（最優先で判定）
+              if current_user and pr.author and pr.author.login == current_user then
+                status_icon = "📤 [自分のPR] "
+                highlight = "DiagnosticInfo" -- 青色
+                sort_priority = 30 -- 3番目
+              elseif review_requested and not already_reviewed then
+                status_icon = "☑️ [要レビュー] "
+                highlight = "DiagnosticWarn" -- 黄色
+                sort_priority = 10 -- 1番目（最優先）
+              elseif already_reviewed then
+                status_icon = "✅ [レビュー済] "
+                highlight = "DiagnosticOk" -- 緑色
+                sort_priority = 20 -- 2番目
+              else
+                status_icon = ""
+                sort_priority = 40 -- 4番目（最低）
+              end
+
               table.insert(pr_items, {
-                text = string.format("#%d: %s", pr.number, pr.title),
+                text = string.format("[%d] %s#%d: %s", sort_priority, status_icon, pr.number, pr.title),
                 pr_number = pr.number,
                 branch = pr.headRefName,
                 title = pr.title,
+                highlight = highlight,
+                sort_priority = sort_priority,
+                author = pr.author and pr.author.login or "unknown",
+                review_requested = review_requested,
+                already_reviewed = already_reviewed,
               })
+            end
+
+            -- ソート: 要レビュー > レビュー済み > 自分のPR > その他
+            table.sort(pr_items, function(a, b)
+              -- デバッグ出力
+              print(
+                string.format(
+                  "Comparing: %d vs %d (priorities: %d vs %d)",
+                  a.pr_number,
+                  b.pr_number,
+                  a.sort_priority,
+                  b.sort_priority
+                )
+              )
+
+              if a.sort_priority ~= b.sort_priority then
+                return a.sort_priority < b.sort_priority
+              end
+              -- 同じ優先度なら番号順（新しいPRが上に来るように）
+              return a.pr_number > b.pr_number
+            end)
+
+            -- ソート後の順序確認
+            print("=== After sort ===")
+            for i, item in ipairs(pr_items) do
+              print(string.format("%d: [%d] PR #%d", i, item.sort_priority, item.pr_number))
             end
 
             return pr_items
@@ -103,9 +218,9 @@ return {
           Snacks.picker({
             source = "static",
             items = pr_list,
-            title = "PR Worktree Workflow [Enter: worktree + diffview]",
+            title = "📋 PR一覧 [☑️要レビュー ✅レビュー済 📤自分のPR]",
             format = function(item, picker)
-              return { { item.text, "Normal" } }
+              return { { item.text, item.highlight } }
             end,
             confirm = function(picker)
               local item = picker:current()
@@ -150,12 +265,20 @@ return {
         desc = "PR Worktree + Diffview",
       },
 
-      -- PRインラインコメント表示機能
+      -- PRコメント診断表示機能（インライン）
       {
         "<leader>gpc",
         function()
-          -- PRコメントをコード内にインライン表示
-          local function show_inline_pr_comments()
+          -- PRコメント用のカスタムハイライトグループを設定
+          vim.api.nvim_set_hl(0, "PRComment", { fg = "#ffffff", bg = "#444444" })
+          vim.api.nvim_set_hl(0, "DiagnosticVirtualLinesInfo", { fg = "#ffffff", bg = "#444444" })
+
+          -- キャッシュクリアして手動で再取得
+          _G.pr_comments_cache = nil
+          vim.notify("🔄 PRコメントキャッシュをクリアして診断表示します", vim.log.levels.INFO)
+
+          -- PRコメントを診断API（インライン）で表示
+          local function show_pr_comments_inline()
             -- まず基本的なPR情報を取得
             local success, result = pcall(function()
               return vim
@@ -179,7 +302,7 @@ return {
 
             local pr_data = vim.json.decode(result.stdout)
 
-            -- 次に、真のインラインコメント（コード行へのコメント）を取得
+            -- インラインコメント（コード行への直接コメント）を取得
             local inline_comments = {}
             local inline_success, inline_result = pcall(function()
               return vim
@@ -202,158 +325,110 @@ return {
               end
             end
 
-            local namespace = vim.api.nvim_create_namespace("pr_comments")
+            -- 現在のファイルパスを取得
+            local current_file = vim.fn.expand("%:.")
 
-            -- 既存のコメントをクリア
-            vim.api.nvim_buf_clear_namespace(0, namespace, 0, -1)
+            -- DiffViewの場合は実際のファイルパスを取得
+            if current_file:match("^diffview://") then
+              local success_diffview, diffview_lib = pcall(require, "diffview.lib")
+              if success_diffview then
+                local view = diffview_lib.get_current_view()
+                if view then
+                  local file = view:infer_cur_file()
+                  if file and file.path then
+                    current_file = file.path
+                  end
+                end
+              end
+            end
+
+            -- 診断APIでPRコメントを設定
+            local namespace = vim.api.nvim_create_namespace("pr_comments_diagnostics")
+            vim.diagnostic.reset(namespace, 0)
 
             local comment_count = 0
             local buffer_line_count = vim.api.nvim_buf_line_count(0)
+            local diagnostics = {}
 
-            -- 0. 真のインラインコメント（コード行への直接コメント）- 最優先
-            local current_file = vim.fn.expand("%:.") -- 相対パス
-            if #inline_comments > 0 then
-              for _, inline_comment in ipairs(inline_comments) do
-                -- 現在のファイルのコメントのみ表示
-                if inline_comment.path == current_file and inline_comment.body and inline_comment.user then
-                  comment_count = comment_count + 1
-                  local line_num = inline_comment.line or inline_comment.original_line or inline_comment.position
-                  local comment_text = string.format(
-                    "📍 %s (行%s): %s",
-                    inline_comment.user,
-                    tostring(line_num),
-                    inline_comment.body:gsub("\n", " "):sub(1, 100)
-                  )
+            -- インラインコメント処理
+            for _, inline_comment in ipairs(inline_comments) do
+              if inline_comment.path == current_file and inline_comment.body and inline_comment.user then
+                comment_count = comment_count + 1
+                local line_num = inline_comment.line or inline_comment.original_line or inline_comment.position
+                local target_line = math.max(0, math.min(buffer_line_count - 1, (tonumber(line_num) or 1) - 1))
 
-                  -- 実際の行番号を使用（1-based to 0-based）
-                  local target_line = math.max(0, math.min(buffer_line_count - 1, (tonumber(line_num) or 1) - 1))
+                -- コメント内容を整形（改行文字を完全に除去）
+                local comment_text = inline_comment
+                  .body
+                  :gsub("\r\n", " ") -- Windows改行をスペースに
+                  :gsub("\r", " ") -- CRをスペースに
+                  :gsub("\n", " ") -- LFをスペースに
+                  :gsub("%s+", " ") -- 連続するスペースを1つに
 
-                  local success, error_msg = pcall(function()
-                    vim.api.nvim_buf_set_extmark(0, namespace, target_line, 0, {
-                      virt_text = { { " " .. comment_text, "DiagnosticWarn" } },
-                      virt_text_pos = "eol",
-                      hl_mode = "combine",
-                      priority = 1000, -- 高優先度でインラインコメントを表示
-                    })
-                  end)
+                -- PRコメント診断を作成（名前の後に改行を追加）
+                local full_message = "💬 " .. inline_comment.user .. ":\n" .. comment_text
 
-                  if not success then
-                    vim.notify(
-                      "Failed to set inline comment extmark: " .. (error_msg or "unknown"),
-                      vim.log.levels.WARN
-                    )
-                  end
-                end
+                table.insert(diagnostics, {
+                  lnum = target_line,
+                  col = 0,
+                  message = full_message,
+                  severity = vim.diagnostic.severity.INFO,
+                  source = "PR Comment",
+                })
               end
             end
 
-            -- 1. General PR comments (一般コメント)
-            if pr_data.comments then
-              for i, comment in ipairs(pr_data.comments) do
-                if comment.body and comment.body ~= "" and comment.author then
-                  comment_count = comment_count + 1
-                  local comment_text =
-                    string.format("💬 %s: %s", comment.author.login, comment.body:gsub("\n", " "):sub(1, 80))
+            -- 診断を設定（現在のバッファのみ）
+            if #diagnostics > 0 then
+              local current_bufnr = vim.api.nvim_get_current_buf()
 
-                  -- コメントを分散して配置（3行目から開始）
-                  local target_line = math.min(buffer_line_count - 1, 2 + (comment_count - 1) * 2)
+              -- 診断データを設定
+              vim.diagnostic.set(namespace, current_bufnr, diagnostics)
 
-                  local success, error_msg = pcall(function()
-                    vim.api.nvim_buf_set_extmark(0, namespace, target_line, 0, {
-                      virt_text = { { " " .. comment_text, "DiagnosticInfo" } },
-                      virt_text_pos = "eol",
-                      hl_mode = "combine",
-                    })
-                  end)
+              -- namespace固有の表示設定（テキスト折り返しあり）
+              vim.diagnostic.config({
+                virtual_text = false,
+                underline = false,
+                signs = false,
+                virtual_lines = {
+                  only_current_line = false,
+                  highlight_whole_line = false,
+                  -- 60文字で改行するフォーマット関数
+                  format = function(diagnostic)
+                    local max_width = 60
+                    local lines = {}
+                    local current_line = ""
+                    local message = diagnostic.message
 
-                  if not success then
-                    vim.notify("Failed to set extmark: " .. (error_msg or "unknown"), vim.log.levels.WARN)
-                  end
-                end
-              end
-            end
+                    -- 文字を1つずつ処理して強制改行
+                    for i = 1, vim.fn.strchars(message) do
+                      local char = vim.fn.strcharpart(message, i - 1, 1)
+                      local test_line = current_line .. char
 
-            -- 2. Review comments (reviewsのコメント)
-            if pr_data.reviews then
-              for i, review in ipairs(pr_data.reviews) do
-                if review.body and review.body ~= "" and review.author then
-                  comment_count = comment_count + 1
-                  local review_state = review.state or "COMMENTED"
-                  local icon = review_state == "APPROVED" and "✅"
-                    or review_state == "CHANGES_REQUESTED" and "🔴"
-                    or "📝"
-
-                  local comment_text = string.format(
-                    "%s %s (%s): %s",
-                    icon,
-                    review.author.login,
-                    review_state,
-                    review.body:gsub("\n", " "):sub(1, 60)
-                  )
-
-                  local hl_group = review_state == "APPROVED" and "DiagnosticOk"
-                    or review_state == "CHANGES_REQUESTED" and "DiagnosticError"
-                    or "DiagnosticWarn"
-
-                  local target_line = math.min(buffer_line_count - 1, 2 + (comment_count - 1) * 2)
-
-                  local success, error_msg = pcall(function()
-                    vim.api.nvim_buf_set_extmark(0, namespace, target_line, 0, {
-                      virt_text = { { " " .. comment_text, hl_group } },
-                      virt_text_pos = "eol",
-                      hl_mode = "combine",
-                    })
-                  end)
-
-                  if not success then
-                    vim.notify("Failed to set review extmark: " .. (error_msg or "unknown"), vim.log.levels.WARN)
-                  end
-                end
-              end
-            end
-
-            -- 3. Latest reviews (最新レビュー)
-            if pr_data.latestReviews then
-              for i, review in ipairs(pr_data.latestReviews) do
-                if review.body and review.body ~= "" and review.author then
-                  -- 既に表示されたレビューと重複しないようにチェック
-                  local is_duplicate = false
-                  if pr_data.reviews then
-                    for _, existing_review in ipairs(pr_data.reviews) do
-                      if existing_review.id == review.id then
-                        is_duplicate = true
-                        break
+                      if vim.fn.strdisplaywidth(test_line) <= max_width then
+                        current_line = test_line
+                      else
+                        -- 現在の行を追加して新しい行を開始
+                        if current_line ~= "" then
+                          table.insert(lines, current_line)
+                        end
+                        current_line = char
                       end
                     end
-                  end
 
-                  if not is_duplicate then
-                    comment_count = comment_count + 1
-                    local comment_text =
-                      string.format("🔄 %s (Latest): %s", review.author.login, review.body:gsub("\n", " "):sub(1, 70))
-
-                    local target_line = math.min(buffer_line_count - 1, 2 + (comment_count - 1) * 2)
-
-                    local success, error_msg = pcall(function()
-                      vim.api.nvim_buf_set_extmark(0, namespace, target_line, 0, {
-                        virt_text = { { " " .. comment_text, "DiagnosticHint" } },
-                        virt_text_pos = "eol",
-                        hl_mode = "combine",
-                      })
-                    end)
-
-                    if not success then
-                      vim.notify(
-                        "Failed to set latest review extmark: " .. (error_msg or "unknown"),
-                        vim.log.levels.WARN
-                      )
+                    -- 最後の行を追加
+                    if current_line ~= "" then
+                      table.insert(lines, current_line)
                     end
-                  end
-                end
-              end
+
+                    -- 複数行を改行で結合して返す
+                    return table.concat(lines, "\n")
+                  end,
+                },
+              }, namespace)
             end
 
-            -- コメント情報をステータスラインに表示
+            -- ステータス表示
             local inline_count = 0
             for _, inline_comment in ipairs(inline_comments) do
               if inline_comment.path == current_file then
@@ -362,92 +437,20 @@ return {
             end
 
             local status_text = string.format(
-              "PR #%s: %d件のコメント表示中 (%d件インライン) [📄 <leader>gpt: ターミナル表示]",
+              "PR #%s: %d件のインラインコメント（診断表示中）",
               pr_data.number,
-              comment_count,
               inline_count
             )
             vim.notify(status_text, vim.log.levels.INFO)
 
-            -- デバッグ: コメント表示位置の確認
-            if comment_count > 0 then
-              -- extmarkの状態を確認
-              local marks = vim.api.nvim_buf_get_extmarks(0, namespace, 0, -1, { details = true })
-
-              vim.notify(
-                string.format(
-                  "💡 %d件のコメントを行の右端に表示しました。実際の extmark 数: %d",
-                  comment_count,
-                  #marks
-                ),
-                vim.log.levels.INFO
-              )
-
-              -- デバッグ: extmarkの詳細を表示
-              for i, mark in ipairs(marks) do
-                vim.notify(
-                  string.format("ExtMark %d: 行%d, 詳細: %s", i, mark[2] + 1, vim.inspect(mark[4])),
-                  vim.log.levels.DEBUG
-                )
-              end
-
-              -- 最初のコメントにジャンプ
-              if #marks > 0 then
-                vim.defer_fn(function()
-                  vim.api.nvim_win_set_cursor(0, { marks[1][2] + 1, 0 })
-                  vim.notify(
-                    "👆 カーソルを最初のコメント位置（行"
-                      .. (marks[1][2] + 1)
-                      .. "）に移動しました。行末を確認してください。",
-                    vim.log.levels.INFO
-                  )
-                end, 500)
-              end
-            else
-              vim.notify("⚠️ 表示可能なコメントが見つかりませんでした", vim.log.levels.WARN)
-            end
-
-            -- コメントナビゲーション用のキーマッピング追加
-            if comment_count > 0 then
-              vim.keymap.set("n", "]c", function()
-                -- 次のコメントへ移動
-                local marks = vim.api.nvim_buf_get_extmarks(0, namespace, 0, -1, {})
-                if #marks > 0 then
-                  local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-                  for _, mark in ipairs(marks) do
-                    if mark[2] > current_line then
-                      vim.api.nvim_win_set_cursor(0, { mark[2] + 1, 0 })
-                      return
-                    end
-                  end
-                  -- 最初のコメントへ
-                  vim.api.nvim_win_set_cursor(0, { marks[1][2] + 1, 0 })
-                end
-              end, { buffer = true, desc = "次のPRコメント" })
-
-              vim.keymap.set("n", "[c", function()
-                -- 前のコメントへ移動
-                local marks = vim.api.nvim_buf_get_extmarks(0, namespace, 0, -1, {})
-                if #marks > 0 then
-                  local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-                  for i = #marks, 1, -1 do
-                    if marks[i][2] < current_line then
-                      vim.api.nvim_win_set_cursor(0, { marks[i][2] + 1, 0 })
-                      return
-                    end
-                  end
-                  -- 最後のコメントへ
-                  vim.api.nvim_win_set_cursor(0, { marks[#marks][2] + 1, 0 })
-                end
-              end, { buffer = true, desc = "前のPRコメント" })
-            else
-              vim.notify("⚠️ このPRにはコメントがありません", vim.log.levels.WARN)
+            if inline_count == 0 then
+              vim.notify("⚠️ このファイルにはPRコメントがありません", vim.log.levels.WARN)
             end
           end
 
-          show_inline_pr_comments()
+          show_pr_comments_inline()
         end,
-        desc = "PR Inline Comments (インラインコメント)",
+        desc = "PR Comments Inline Display (診断API)",
       },
 
       -- PRコメントターミナル表示
@@ -490,20 +493,17 @@ return {
         desc = "PR Comments Terminal (ターミナル表示)",
       },
 
-      -- PRインラインコメントをクリア
+      -- PRコメント診断をクリア
       {
         "<leader>gph",
         function()
-          local namespace = vim.api.nvim_create_namespace("pr_comments")
-          vim.api.nvim_buf_clear_namespace(0, namespace, 0, -1)
+          local namespace = vim.api.nvim_create_namespace("pr_comments_diagnostics")
+          local current_bufnr = vim.api.nvim_get_current_buf()
+          vim.diagnostic.reset(namespace, current_bufnr)
 
-          -- キーマッピングをクリア
-          pcall(vim.keymap.del, "n", "]c", { buffer = true })
-          pcall(vim.keymap.del, "n", "[c", { buffer = true })
-
-          vim.notify("🧹 PRインラインコメントを非表示にしました", vim.log.levels.INFO)
+          vim.notify("🧹 PRコメント診断をクリアしました", vim.log.levels.INFO)
         end,
-        desc = "Hide PR Inline Comments",
+        desc = "PRコメント診断クリア",
       },
 
       -- PRコメントのデバッグ情報表示
@@ -528,13 +528,13 @@ return {
           -- 既存をクリア
           vim.api.nvim_buf_clear_namespace(0, namespace, 0, -1)
 
-          -- 現在の行に仮想テキストを追加
+          -- 現在の行に仮想テキストを追加（行末）
           local current_line = vim.api.nvim_win_get_cursor(0)[1] - 1
 
           vim.api.nvim_buf_set_extmark(0, namespace, current_line, 0, {
             virt_text = {
               {
-                " 🔥 TEST VIRTUAL TEXT - もしこれが見えたら仮想テキスト機能は動作しています",
+                " 🔥 行末テスト",
                 "ErrorMsg",
               },
             },
@@ -542,30 +542,40 @@ return {
             hl_mode = "combine",
           })
 
+          -- 現在の行の下に仮想行を追加（インラインコメント風）
+          local test_virt_lines_namespace = vim.api.nvim_create_namespace("test_virt_lines")
+          vim.api.nvim_buf_set_extmark(0, test_virt_lines_namespace, current_line, 0, {
+            virt_lines = {
+              {
+                { "  ├─ ", "Comment" },
+                { "💬 テストユーザー: ", "DiagnosticWarn" },
+                {
+                  "これは行の下に表示されるテストコメントです。GitHubライクな表示！",
+                  "Comment",
+                },
+              },
+              {
+                { "  │  ", "Comment" },
+                { "長いコメントは複数行に分かれて表示されます。", "Comment" },
+              },
+            },
+            virt_lines_above = false, -- 該当行の下に表示
+            hl_mode = "combine",
+          })
+
           vim.notify(
-            "🧪 テスト用仮想テキストを現在の行に表示しました（行末）",
+            "🧪 仮想テキスト（行末）と仮想行（下部）の両方をテスト表示しました",
             vim.log.levels.INFO
           )
-
-          -- 3行下にも追加
-          if current_line + 3 < vim.api.nvim_buf_line_count(0) then
-            vim.api.nvim_buf_set_extmark(0, namespace, current_line + 3, 0, {
-              virt_text = { { " 💡 これも見えますか？", "WarningMsg" } },
-              virt_text_pos = "eol",
-              hl_mode = "combine",
-            })
-          end
-
-          -- namespace情報も表示
-          vim.notify("Namespace ID: " .. namespace, vim.log.levels.INFO)
 
           -- 10秒後に自動クリア
           vim.defer_fn(function()
             vim.api.nvim_buf_clear_namespace(0, namespace, 0, -1)
-            vim.notify("🧹 テスト用仮想テキストを削除しました", vim.log.levels.INFO)
+            vim.api.nvim_buf_clear_namespace(0, test_virt_lines_namespace, 0, -1)
+            vim.notify("🧹 テスト用仮想テキスト/仮想行を削除しました", vim.log.levels.INFO)
           end, 10000)
         end,
-        desc = "Test Virtual Text Display",
+        desc = "Test Virtual Text & Lines Display",
       },
 
       -- PRコメントに返信・ディスカッション
@@ -920,6 +930,203 @@ return {
         signs = {
           fold_closed = "",
           fold_open = "",
+        },
+
+        -- フック設定（PRコメント自動表示 - diff_buf_readフックを使用）
+        hooks = {
+          -- diff_buf_readフックを使用してDiffビューのバッファが読み込まれた時に実行
+          diff_buf_read = function(bufnr)
+            -- PRコメント用のカスタムハイライトグループを設定
+            vim.api.nvim_set_hl(0, "PRComment", { fg = "#ffffff", bg = "#444444" })
+            vim.api.nvim_set_hl(0, "DiagnosticVirtualLinesInfo", { fg = "#ffffff", bg = "#444444" })
+
+            -- DiffView用の基本設定
+            vim.opt_local.wrap = false
+            vim.opt_local.list = false
+
+            -- PRコメント自動表示（ディレイなし）
+            -- PRかどうかチェック
+            local pr_check = vim.system({ "gh", "pr", "view", "--json", "number" }, { text = true }):wait()
+            if pr_check.code ~= 0 then
+              return
+            end
+
+            -- グローバルキャッシュから取得または新規取得
+            local inline_comments = {}
+            if _G.pr_comments_cache then
+              inline_comments = _G.pr_comments_cache
+              -- 通知削除: キャッシュからPRコメント取得
+            else
+              -- 通知削除: PRコメントを初回取得中
+
+              -- PR情報取得
+              local pr_data_result = vim
+                .system({
+                  "gh",
+                  "pr",
+                  "view",
+                  "--json",
+                  "number,reviews,comments,latestReviews",
+                }, { text = true })
+                :wait()
+
+              if pr_data_result.code ~= 0 then
+                return
+              end
+
+              local pr_data = vim.json.decode(pr_data_result.stdout)
+              if not pr_data or not pr_data.number then
+                return
+              end
+
+              -- インラインコメント取得
+              local inline_success, inline_result = pcall(function()
+                return vim
+                  .system({
+                    "gh",
+                    "api",
+                    "repos/:owner/:repo/pulls/" .. pr_data.number .. "/comments",
+                    "--jq",
+                    "map(select(.position != null)) | map({body: .body, path: .path, line: .line, position: .position, user: .user.login, original_line: .original_line})",
+                  }, { text = true })
+                  :wait()
+              end)
+
+              if not (inline_success and inline_result.code == 0 and inline_result.stdout ~= "[]") then
+                vim.notify("⚠️  インラインコメント取得失敗", vim.log.levels.WARN)
+                return
+              end
+
+              local comments_data = vim.json.decode(inline_result.stdout)
+              if not (type(comments_data) == "table" and #comments_data > 0) then
+                vim.notify("⚠️  コメントデータが空", vim.log.levels.WARN)
+                return
+              end
+
+              inline_comments = comments_data
+              -- キャッシュに保存
+              _G.pr_comments_cache = inline_comments
+            end
+
+            -- DiffViewからファイルパス取得
+            local actual_file_path = nil
+            local diffview = require("diffview.lib").get_current_view()
+            if diffview and diffview.panel and diffview.panel.cur_file then
+              actual_file_path = diffview.panel.cur_file.path
+            end
+
+            if not actual_file_path then
+              return
+            end
+
+            -- ファイルに該当するコメントをフィルタ
+            local file_comments = {}
+            for _, comment in ipairs(inline_comments) do
+              if comment.path == actual_file_path then
+                table.insert(file_comments, comment)
+              end
+            end
+
+            if #file_comments == 0 then
+              return
+            end
+
+            -- PRコメントを診断APIで表示（自動）
+            local namespace = vim.api.nvim_create_namespace("pr_comments_diagnostics_auto")
+            vim.diagnostic.reset(namespace, bufnr)
+
+            local comment_count = 0
+            local diagnostics = {}
+
+            for _, comment in ipairs(file_comments) do
+              local target_line = (comment.line or comment.position or comment.original_line or 1) - 1
+              target_line = math.max(0, target_line)
+
+              if target_line < vim.api.nvim_buf_line_count(bufnr) then
+                comment_count = comment_count + 1
+
+                -- コメント内容を整形（改行文字を完全に除去）
+                local comment_text = comment
+                  .body
+                  :gsub("\r\n", " ") -- Windows改行をスペースに
+                  :gsub("\r", " ") -- CRをスペースに
+                  :gsub("\n", " ") -- LFをスペースに
+                  :gsub("%s+", " ") -- 連続するスペースを1つに
+
+                -- PRコメント診断を作成（名前の後に改行を追加）
+                local author = comment.user or "unknown"
+                local full_message = "💬 " .. author .. ":\n" .. comment_text
+
+                table.insert(diagnostics, {
+                  lnum = target_line,
+                  col = 0,
+                  message = full_message,
+                  severity = vim.diagnostic.severity.INFO,
+                  source = "PR Comment (Auto)",
+                })
+              end
+            end
+
+            -- 診断を設定（該当バッファのみ）
+            if #diagnostics > 0 then
+              -- 診断データを設定
+              vim.diagnostic.set(namespace, bufnr, diagnostics)
+
+              -- namespace固有の表示設定（テキスト折り返しあり）
+              vim.diagnostic.config({
+                virtual_text = false,
+                underline = false,
+                signs = false,
+                virtual_lines = {
+                  only_current_line = false,
+                  highlight_whole_line = false,
+                  -- 60文字で改行するフォーマット関数
+                  format = function(diagnostic)
+                    local max_width = 60
+                    local lines = {}
+                    local current_line = ""
+                    local message = diagnostic.message
+
+                    -- 文字を1つずつ処理して強制改行
+                    for i = 1, vim.fn.strchars(message) do
+                      local char = vim.fn.strcharpart(message, i - 1, 1)
+                      local test_line = current_line .. char
+
+                      if vim.fn.strdisplaywidth(test_line) <= max_width then
+                        current_line = test_line
+                      else
+                        -- 現在の行を追加して新しい行を開始
+                        if current_line ~= "" then
+                          table.insert(lines, current_line)
+                        end
+                        current_line = char
+                      end
+                    end
+
+                    -- 最後の行を追加
+                    if current_line ~= "" then
+                      table.insert(lines, current_line)
+                    end
+
+                    -- 複数行を改行で結合して返す
+                    return table.concat(lines, "\n")
+                  end,
+                },
+              }, namespace)
+            end
+
+            -- floating window実装削除済み - 診断APIを使用
+
+            -- 通知削除: PRコメント表示完了通知
+          end,
+
+          view_opened = function(view)
+            -- DiffView開くときの通知のみ（ディレイなし）
+            local pr_check = vim.system({ "gh", "pr", "view", "--json", "number" }, { text = true }):wait()
+            if pr_check.code == 0 then
+              vim.notify("🔍 PRレビュー モードで開きました", vim.log.levels.INFO)
+            end
+          end,
         },
       })
 

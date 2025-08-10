@@ -504,6 +504,33 @@ function M.execute_setup_directly(worktree_path, git_root, patch_file, dot_files
             "❌ Failed to install dependencies: " .. vim.fn.fnamemodify(worktree_path, ":t") .. "\n" .. error_msg,
             vim.log.levels.ERROR
           )
+        else
+          -- 依存関係インストール成功後、serverディレクトリで Prisma のコード生成を実行
+          local server_dir = worktree_path .. "/server"
+          if vim.fn.isdirectory(server_dir) == 1 then
+            local prisma_schema = server_dir .. "/prisma/schema.prisma"
+            if vim.fn.filereadable(prisma_schema) == 1 or vim.fn.isdirectory(server_dir .. "/prisma") == 1 then
+              local prisma_cmd = string.format(
+                "cd %s && source ~/.zshrc 2>/dev/null ; %s prisma generate",
+                vim.fn.shellescape(server_dir),
+                CONFIG.package_manager
+              )
+              vim.system({ "zsh", "-c", prisma_cmd }, {}, function(gen_result)
+                vim.schedule(function()
+                  if gen_result.code ~= 0 then
+                    local err = gen_result.stderr or gen_result.stdout or "unknown error"
+                    vim.notify(
+                      "❌ Failed to run prisma generate in server: "
+                        .. vim.fn.fnamemodify(worktree_path, ":t")
+                        .. "\n"
+                        .. err,
+                      vim.log.levels.ERROR
+                    )
+                  end
+                end)
+              end)
+            end
+          end
         end
       end)
     end)
