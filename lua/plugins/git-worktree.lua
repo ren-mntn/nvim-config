@@ -78,9 +78,7 @@ local function create_worktree()
         -- ステージングされた変更と未ステージの変更を両方含める（追跡ファイルのみ）
         vim.fn.system("git diff HEAD > " .. patch_file)
         local patch_size = vim.fn.getfsize(patch_file)
-        if patch_size > 0 then
-          vim.notify("✅ パッチファイル作成完了", vim.log.levels.INFO)
-        else
+        if patch_size <= 0 then
           patch_file = nil
         end
       end
@@ -104,7 +102,6 @@ local function create_worktree()
       end
 
       -- Git worktree作成
-      vim.notify("⚙️ Git worktree作成中...", vim.log.levels.INFO)
 
       -- mainブランチをfetch
       vim.fn.system("git fetch origin main:main 2>/dev/null")
@@ -132,10 +129,7 @@ local function create_worktree()
         return
       end
 
-      vim.notify("✅ Git worktree作成完了", vim.log.levels.INFO)
-
       -- 先にiTerm2タブを開く
-      vim.notify("📱 iTerm2タブを開いています...", vim.log.levels.INFO)
       vim.fn.system(string.format("cd %s && open -a iTerm.app .", vim.fn.shellescape(worktree_path)))
 
       -- セットアップスクリプト作成・タブ内実行
@@ -276,7 +270,6 @@ echo "📂 移動先: %s"
     file:write(setup_script)
     file:close()
 
-    vim.notify("🚀 セットアップスクリプトを実行中...", vim.log.levels.INFO)
     vim.cmd("terminal bash " .. temp_script)
 
     -- スクリプト削除
@@ -440,8 +433,6 @@ end tell
       script_file:write(applescript)
       script_file:close()
 
-      vim.notify("🚀 iTerm2タブでセットアップスクリプトを実行中...", vim.log.levels.INFO)
-
       -- AppleScriptを実行（少し遅延を入れてタブが確実に開かれてから実行）
       vim.defer_fn(function()
         vim.system({ "osascript", applescript_file }, {}, function()
@@ -495,8 +486,8 @@ local function get_worktree_list()
           -- メインプロジェクト（複数あっても最初のものを採用）
           if not main_worktree then
             main_worktree = {
-              display = string.format("🌿 %s (main project)%s", branch, current_mark),
-              text = string.format("🌿 %s (main project)%s", branch, current_mark),
+              display = string.format(" %s (main project)%s", branch, current_mark),
+              text = string.format(" %s (main project)%s", branch, current_mark),
               file = path,
               path = path,
               branch = branch,
@@ -510,8 +501,8 @@ local function get_worktree_list()
           end
 
           table.insert(other_worktrees, {
-            display = string.format("🌿 %s (%s)%s", branch, display_path, current_mark),
-            text = string.format("🌿 %s (%s)%s", branch, display_path, current_mark),
+            display = string.format(" %s (%s)%s", branch, display_path, current_mark),
+            text = string.format(" %s (%s)%s", branch, display_path, current_mark),
             file = path,
             path = path,
             branch = branch,
@@ -550,7 +541,6 @@ local function switch_worktree(target_path, branch_name)
   end
 
   vim.cmd("cd " .. vim.fn.fnameescape(target_path))
-  vim.notify("✅ 切り替え完了: " .. branch_name, vim.log.levels.INFO)
 
   -- Neo-tree更新
   vim.schedule(function()
@@ -564,8 +554,6 @@ end
 
 -- 3段階削除処理（ブランチも削除）
 local function delete_worktree_async(path, branch_name)
-  vim.notify("🔄 バックグラウンドで削除処理中...", vim.log.levels.INFO)
-
   -- Stage 1: git worktree prune
   vim.system({ "git", "worktree", "prune" }, {}, function()
     -- Stage 2: git worktree remove --force
@@ -574,16 +562,7 @@ local function delete_worktree_async(path, branch_name)
         if result.code == 0 then
           -- Stage 3: ローカルブランチも削除
           vim.system({ "git", "branch", "-D", branch_name }, {}, function(branch_result)
-            vim.schedule(function()
-              if branch_result.code == 0 then
-                vim.notify("🗑️ Worktreeとブランチ削除完了: " .. branch_name, vim.log.levels.INFO)
-              else
-                vim.notify(
-                  "🗑️ Worktree削除完了（ブランチ削除スキップ）: " .. branch_name,
-                  vim.log.levels.INFO
-                )
-              end
-            end)
+            -- 削除完了（通知なし）
           end)
         else
           vim.notify("⚠️ 修復モードで削除中...", vim.log.levels.WARN)
@@ -592,19 +571,7 @@ local function delete_worktree_async(path, branch_name)
             vim.system({ "git", "worktree", "prune" }, {}, function()
               -- ブランチも削除
               vim.system({ "git", "branch", "-D", branch_name }, {}, function(branch_result)
-                vim.schedule(function()
-                  if branch_result.code == 0 then
-                    vim.notify(
-                      "🗑️ 修復・削除完了（ブランチ含む）: " .. branch_name,
-                      vim.log.levels.INFO
-                    )
-                  else
-                    vim.notify(
-                      "🗑️ 修復・削除完了（ブランチ削除スキップ）: " .. branch_name,
-                      vim.log.levels.INFO
-                    )
-                  end
-                end)
+                -- 修復・削除完了（通知なし）
               end)
             end)
           end)
@@ -659,16 +626,10 @@ local function delete_all_worktrees_except_main()
     pcall(vim.keymap.del, "n", "<Esc>", { buffer = true })
 
     if should_delete then
-      vim.notify("🔄 " .. #worktrees_to_delete .. "個のWorktreeを削除中...", vim.log.levels.INFO)
-
       -- 逐次削除実行
-      local completed = 0
       for _, worktree in ipairs(worktrees_to_delete) do
         delete_worktree_async(worktree.path, worktree.branch)
-        completed = completed + 1
       end
-
-      vim.notify("✅ " .. completed .. "個のWorktree削除処理を開始しました", vim.log.levels.INFO)
     else
       vim.notify("削除をキャンセルしました", vim.log.levels.INFO)
     end
@@ -702,13 +663,14 @@ local function show_worktree_list()
   Snacks.picker({
     source = "static",
     items = worktree_list,
-    title = "🌳 Git Worktrees [Enter: 切り替え | Ctrl-d: 削除 | D: 一括削除 | ?: ヘルプ]",
+    title = "Git Worktrees [Enter: 切り替え | d: 削除 | D: 一括削除 | t: iTerm | ?: ヘルプ]",
     format = function(item, picker)
       return { { item.display, "Normal" } }
     end,
     layout = { preset = "select" }, -- selectプリセットを使用（中央表示、プレビューなし）
     matcher = { sort_empty = false }, -- 空の検索時はソートしない（元の順序を保持）
     sort = false, -- 完全にソートを無効化
+    focus = "list", -- リストにフォーカス（ノーマルモード）
     actions = {
       worktree_delete = function(picker)
         local item = picker:current()
@@ -757,6 +719,19 @@ local function show_worktree_list()
           delete_all_worktrees_except_main()
         end)
       end,
+      open_in_iterm = function(picker)
+        local item = picker:current()
+        if not item then
+          vim.notify("❌ Worktreeが選択されていません", vim.log.levels.WARN)
+          return
+        end
+
+        picker:close()
+
+        vim.schedule(function()
+          vim.fn.system(string.format("cd %s && open -a iTerm.app .", vim.fn.shellescape(item.path)))
+        end)
+      end,
     },
     win = {
       input = {
@@ -769,10 +744,14 @@ local function show_worktree_list()
             "worktree_delete_all",
             mode = { "n", "i" },
           },
+          ["<c-t>"] = {
+            "open_in_iterm",
+            mode = { "n", "i" },
+          },
           ["?"] = {
             function(picker)
               vim.notify(
-                "🌳 Git Worktree操作ヘルプ:\n\n⌨️  キー操作:\n  Enter      : 選択したWorktreeに切り替え\n  Ctrl-d     : 選択したWorktreeを削除 (確認あり)\n  d          : 選択したWorktreeを削除 (確認あり)\n  D          : main以外の全Worktreeを削除 (確認あり)\n  Esc        : ピッカーを閉じる\n  ?          : このヘルプを表示\n\n🚀 機能:\n  • Worktree間の高速切り替え\n  • 個別・一括での安全な削除\n  • メインプロジェクトは削除不可\n\n💡 ヒント:\n  削除時は「y」で実行、「N」でキャンセル",
+                "Git Worktree操作ヘルプ:\n\n⌨️  キー操作:\n  Enter      : 選択したWorktreeに切り替え\n  d          : 選択したWorktreeを削除 (確認あり)\n  D          : main以外の全Worktreeを削除 (確認あり)\n  t          : 選択したWorktreeでiTerm2タブを開く\n  Esc        : ピッカーを閉じる\n  ?          : このヘルプを表示\n\n🚀 機能:\n  • Worktree間の高速切り替え\n  • 個別・一括での安全な削除\n  • iTerm2タブでWorktree開く\n  • メインプロジェクトは削除不可\n\n💡 ヒント:\n  削除時は「y」で実行、「N」でキャンセル\n  Ctrl+d, Ctrl+tも利用可能",
                 vim.log.levels.INFO
               )
             end,
@@ -782,8 +761,9 @@ local function show_worktree_list()
       },
       list = {
         keys = {
-          ["d"] = "worktree_delete",
-          ["D"] = "worktree_delete_all",
+          ["d"] = { "worktree_delete", mode = "n" },
+          ["D"] = { "worktree_delete_all", mode = "n" },
+          ["t"] = { "open_in_iterm", mode = "n" },
         },
       },
     },
