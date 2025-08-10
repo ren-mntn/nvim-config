@@ -292,6 +292,65 @@ local function create_worktree()
   end)
 end
 
+-- diffview.nvim連携用: ブランチ指定でworktree作成
+function M.create_worktree_for_branch(branch_name, callback)
+  local git_root = get_git_root()
+  if not git_root then
+    vim.notify("Not a Git repository", vim.log.levels.ERROR)
+    if callback then
+      callback(nil)
+    end
+    return
+  end
+
+  local worktree_base = get_worktree_base(git_root)
+
+  -- ディレクトリ作成
+  if not create_worktree_directory(worktree_base) then
+    vim.notify("Failed to create git-worktrees directory", vim.log.levels.ERROR)
+    if callback then
+      callback(nil)
+    end
+    return
+  end
+
+  -- ディレクトリ名変換
+  local safe_dir_name = branch_name:gsub("/", "-"):gsub("[^%w%-_]", "-")
+  local worktree_path = worktree_base .. "/" .. safe_dir_name
+
+  -- 重複チェック
+  if vim.fn.isdirectory(worktree_path) == 1 then
+    -- 既存のworktreeがある場合は、そのパスを返す
+    if callback then
+      callback(worktree_path)
+    end
+    return
+  end
+
+  -- ファイル準備
+  local patch_file = create_patch_file()
+  local dot_files = collect_dotfiles()
+
+  -- Git worktree作成（非同期）
+  create_git_worktree_async(branch_name, worktree_path, function(success, error_msg)
+    if not success then
+      vim.notify("Failed to create worktree: " .. (error_msg or "unknown error"), vim.log.levels.ERROR)
+      if callback then
+        callback(nil)
+      end
+      return
+    end
+
+    -- セットアップ処理
+    setup_worktree(worktree_path, git_root, patch_file, dot_files)
+
+    -- コールバック実行
+    if callback then
+      callback(worktree_path)
+    end
+  end)
+end
+
 -- セットアップを直接実行（AppleScript不使用）
 function M.execute_setup_directly(worktree_path, git_root, patch_file, dot_files)
   -- グローバルgitignore設定

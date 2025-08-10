@@ -163,9 +163,8 @@ return {
     { "<leader>fs", function() require("snacks").picker.smart() end, desc = "Smart Picker" },
     { "<leader>fu", function() require("snacks").picker.undo() end, desc = "Undo History" },
     
-    -- Git関連
-    { "<leader>gf", function() require("snacks").picker.git_files() end, desc = "Git Files (All)" },
-    { "<leader>gc", function() require("snacks").picker.git_log() end, desc = "Git Commits" },
+    -- Git関連（競合回避のため一部キー変更）
+    { "<leader>gF", function() require("snacks").picker.git_files() end, desc = "Git Files (All)" },
     { "<leader>gs", function() 
       require("snacks").picker.git_status({
         preview = "git_status",  -- Git差分プレビュー強化
