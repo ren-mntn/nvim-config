@@ -105,8 +105,6 @@ return {
             local pr_data = vim.json.decode(result.stdout)
             local pr_items = {}
 
-            -- デバッグコード削除済み
-
             for _, pr in ipairs(pr_data) do
               -- レビュー状態を詳細に判定
               local status_icon = ""
@@ -168,7 +166,7 @@ return {
               end
 
               table.insert(pr_items, {
-                text = string.format("[%d] %s#%d: %s", sort_priority, status_icon, pr.number, pr.title),
+                text = string.format("%s#%d: %s", status_icon, pr.number, pr.title),
                 pr_number = pr.number,
                 branch = pr.headRefName,
                 title = pr.title,
@@ -182,29 +180,12 @@ return {
 
             -- ソート: 要レビュー > レビュー済み > 自分のPR > その他
             table.sort(pr_items, function(a, b)
-              -- デバッグ出力
-              print(
-                string.format(
-                  "Comparing: %d vs %d (priorities: %d vs %d)",
-                  a.pr_number,
-                  b.pr_number,
-                  a.sort_priority,
-                  b.sort_priority
-                )
-              )
-
               if a.sort_priority ~= b.sort_priority then
                 return a.sort_priority < b.sort_priority
               end
               -- 同じ優先度なら番号順（新しいPRが上に来るように）
               return a.pr_number > b.pr_number
             end)
-
-            -- ソート後の順序確認
-            print("=== After sort ===")
-            for i, item in ipairs(pr_items) do
-              print(string.format("%d: [%d] PR #%d", i, item.sort_priority, item.pr_number))
-            end
 
             return pr_items
           end
@@ -214,11 +195,18 @@ return {
             return
           end
 
-          -- Snacks pickerでPR選択
+          -- デバッグ: ソート後の順序を確認
+          print("=== PR list order before picker ===")
+          for i, item in ipairs(pr_list) do
+            print(string.format("%d: [priority %d] %s", i, item.sort_priority, item.text))
+          end
+
+          -- Snacks pickerでPR選択（ソートを無効化）
           Snacks.picker({
             source = "static",
             items = pr_list,
             title = "📋 PR一覧 [☑️要レビュー ✅レビュー済 📤自分のPR]",
+            sort = false, -- pickerのソートを無効化
             format = function(item, picker)
               return { { item.text, item.highlight } }
             end,
