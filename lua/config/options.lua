@@ -22,14 +22,15 @@ vim.env.PATH = vim.env.PATH .. ":/opt/homebrew/bin"
 -- 設定を整理するためのグループを作成
 local augroup = vim.api.nvim_create_augroup("MyCustomAutocmds", { clear = true })
 
--- 2. 起動時にNeo-treeを開く
-vim.api.nvim_create_autocmd("User", {
+-- セッション自動復元の設定
+vim.api.nvim_create_autocmd("VimEnter", {
   group = augroup,
-  pattern = "LazyVimStarted", -- VimEnter から変更
-  desc = "Open Neo-tree on startup if no file is specified",
+  desc = "Auto restore session on startup",
+  nested = true,
   callback = function()
-    if vim.fn.argc() == 0 then
-      vim.cmd("Neotree")
+    -- 引数なしで起動した場合のみセッションを復元
+    if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
+      require("persistence").load()
     end
   end,
 })
