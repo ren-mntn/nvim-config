@@ -77,6 +77,28 @@ return {
     
     -- カスタムハイライトグループを定義する関数
     local function set_snacks_highlights()
+      -- Dashboard（スタートスクリーン）のハイライト設定
+      vim.api.nvim_set_hl(0, "SnacksDashboardHeader", {
+        fg = "#a07145"   -- ヘッダー（NEOVIM）の色：ライトグレー（統一感のため）
+      })
+      
+      vim.api.nvim_set_hl(0, "SnacksDashboardKey", {
+        fg = "#a07145"   -- キー（f, n, p など）の色：ライトグレー
+      })
+      
+      vim.api.nvim_set_hl(0, "SnacksDashboardDesc", {
+        fg = "#ACAAA2"   -- 説明文（Find File, New File など）の色：ライトグレー
+      })
+      
+      vim.api.nvim_set_hl(0, "SnacksDashboardIcon", {
+        fg = "#a07145"   -- アイコンの色：ライトグレー
+      })
+      
+      vim.api.nvim_set_hl(0, "SnacksDashboardFooter", {
+        fg = "#ACAAA2"   -- フッター（プラグイン数など）の色：グレー
+      })
+      
+      -- Picker関連のハイライト
       vim.api.nvim_set_hl(0, "SnacksPickerInput", { 
         bg = "#1E1E1E",  -- 入力欄の背景色
         fg = "#f7fafc"   -- 白い文字色
@@ -119,9 +141,10 @@ return {
       })
       
       -- -- GitSigns用ハイライトも設定
+      -- local colors = require("config.colors")
       -- vim.api.nvim_set_hl(0, "GitSignsAdd", {
       --   bg = "#4C5A2C",
-      --   fg = "#ffffff"
+      --   fg = colors.colors.white
       -- })
       
       -- vim.api.nvim_set_hl(0, "GitSignsChange", {
@@ -131,7 +154,7 @@ return {
       
       -- vim.api.nvim_set_hl(0, "GitSignsDelete", {
       --   bg = "#4d0000",
-      --   fg = "#ffffff"
+      --   fg = colors.colors.white
       -- })
     end
     
