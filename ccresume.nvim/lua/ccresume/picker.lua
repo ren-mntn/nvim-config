@@ -123,7 +123,7 @@ local function generate_conversation_summary(messages)
 end
 
 -- Snacks.nvim picker用の表示関数
-function M.show_with_snacks_picker(conversations, picker_title, start_claude_session, start_new_session)
+function M.show_with_snacks_picker(conversations, picker_title, start_claude_session, start_new_session, config)
   -- 新しいセッションオプションを含むアイテム作成
   local items = { { title = "🆕 新しいセッションを開始", is_new = true } }
 
@@ -278,16 +278,21 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
         table.insert(lines, "")
         table.insert(lines, "Session: " .. (conv.session_id:sub(1, 8) or "unknown"))
         table.insert(lines, "Directory: " .. format_project_path(conv.project_path))
-        table.insert(lines, "Branch: -") -- ブランチ情報は後で実装
+        table.insert(lines, "Branch: -")
         table.insert(lines, "")
 
-        -- メッセージ履歴をccresume形式で表示
-        local message_line_data = {} -- 色付けのための行情報を保存
+        local message_line_data = {}
         if conv.messages and #conv.messages > 0 then
           local displayed_messages = 0
-          local max_messages = 10 -- 最大表示メッセージ数
+          
+          -- 設定に基づいてメッセージの順序を決定
+          local reverse_order = config and config.preview and config.preview.reverse_order or false
+          local start_idx, end_idx, step = 1, #conv.messages, 1
+          if reverse_order then
+            start_idx, end_idx, step = #conv.messages, 1, -1
+          end
 
-          for i = math.max(1, #conv.messages - max_messages + 1), #conv.messages do
+          for i = start_idx, end_idx, step do
             local msg = conv.messages[i]
             if msg and msg.timestamp then
               local timestamp = 0
@@ -376,6 +381,25 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
 
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
         vim.bo[buf].filetype = "markdown"
+
+        -- 設定に基づいてスクロール位置を調整
+        vim.schedule(function()
+          local wins = vim.api.nvim_list_wins()
+          for _, win in ipairs(wins) do
+            if vim.api.nvim_win_get_buf(win) == buf then
+              local reverse_order = config and config.preview and config.preview.reverse_order or false
+              if reverse_order then
+                -- 新しいメッセージが上にある場合は上部を表示
+                vim.api.nvim_win_set_cursor(win, {1, 0})
+              else
+                -- 従来通り最下部を表示
+                local line_count = vim.api.nvim_buf_line_count(buf)
+                vim.api.nvim_win_set_cursor(win, {line_count, 0})
+              end
+              break
+            end
+          end
+        end)
 
         -- メッセージの色付け（行全体）
         for _, msg_data in ipairs(message_line_data) do

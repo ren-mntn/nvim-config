@@ -136,7 +136,7 @@ function M.show_conversations(filter_current_dir)
   local ok_snacks, snacks = pcall(require, "snacks.picker")
   if ok_snacks then
     -- Snacks.nvim pickerでの表示
-    picker.show_with_snacks_picker(conversations, title, start_claude_session, start_new_session)
+    picker.show_with_snacks_picker(conversations, title, start_claude_session, start_new_session, M.config)
   else
     -- フォールバック: vim.ui.selectでシンプル表示
     show_with_vim_ui_select(conversations)
@@ -148,9 +148,19 @@ function M.show_current_dir_conversations()
   M.show_conversations(true)
 end
 
+-- デフォルト設定
+M.config = {
+  preview = {
+    reverse_order = false, -- trueで新しいメッセージを上に表示
+  }
+}
+
 -- プラグイン設定
 function M.setup(opts)
   opts = opts or {}
+  
+  -- 設定をマージ
+  M.config = vim.tbl_deep_extend("force", M.config, opts)
 
   -- デフォルトのキーマッピング設定
   if opts.keys ~= false then

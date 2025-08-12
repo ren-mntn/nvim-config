@@ -19,6 +19,9 @@ return {
         all = "<leader>cH",          -- 全ての会話
       },
       commands = true,  -- コマンドを有効化
+      preview = {
+        reverse_order = true,  -- 新しいメッセージを上に表示
+      },
     })
   end,
 }
