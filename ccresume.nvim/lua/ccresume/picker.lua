@@ -1,6 +1,6 @@
 local M = {}
 
--- プロジェクトパスの短縮表示（ccresume形式）
+-- プロジェクトパスの短縮表示
 local function format_project_path(path)
   local home = vim.fn.expand("~")
   if path:find(home, 1, true) == 1 then
@@ -9,7 +9,7 @@ local function format_project_path(path)
   return path
 end
 
--- 日付フォーマット（ccresume形式：MMM dd HH:mm）
+-- 日付フォーマット
 local function format_date(timestamp)
   if not timestamp or timestamp == "" then
     return "Jan 01 00:00"
@@ -40,7 +40,7 @@ local function format_date(timestamp)
   end
 end
 
--- 会話サマリーの生成（ccresumeと同じロジック）
+-- 会話サマリーの生成
 local function generate_conversation_summary(messages)
   -- ユーザーメッセージで実際のテキストコンテンツがあるものを抽出
   local user_messages = {}
@@ -122,13 +122,11 @@ local function generate_conversation_summary(messages)
   return cleaned_message ~= "" and cleaned_message or "No summary available"
 end
 
--- Snacks.nvim picker用の表示関数
-function M.show_with_snacks_picker(conversations, picker_title, start_claude_session, start_new_session, config)
-  -- 新しいセッションオプションを含むアイテム作成
+-- アイテムリスト作成のヘルパー関数
+local function create_items(conversations, show_view_all)
   local items = { { title = "🆕 新しいセッションを開始", is_new = true } }
 
   for i, conv in ipairs(conversations) do
-    -- ccresumeと同じ形式で表示文字列を生成
     local date_str = format_date(conv.created_at)
     local project_path = format_project_path(conv.project_path)
     local summary = generate_conversation_summary(conv.messages or {})
@@ -137,13 +135,202 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
     table.insert(items, {
       title = display_title,
       conversation = conv,
-      text = summary, -- picker検索用
-      file = conv.project_path, -- ディレクトリ表示用
-      preview = conv.preview, -- プレビュー内容
-      messages = conv.messages or {}, -- メッセージ配列
-      timestamp = conv.created_at or "", -- ソート用
+      text = summary,
+      file = conv.project_path,
+      preview = conv.preview,
+      messages = conv.messages or {},
+      timestamp = conv.created_at or "",
     })
   end
+
+  -- 「全件を見る」ボタンを追加
+  if show_view_all then
+    table.insert(items, {
+      title = "📋 全件を見る",
+      is_view_all = true,
+    })
+  end
+
+  return items
+end
+
+-- 「全件を見る」機能付きPicker
+function M.show_with_snacks_picker_view_all(
+  conversations,
+  picker_title,
+  start_claude_session,
+  start_new_session,
+  config,
+  view_all_callback
+)
+  local show_view_all = view_all_callback ~= nil
+  local items = create_items(conversations, show_view_all)
+
+  local picker = require("snacks.picker").pick({
+    source = "ccresume",
+    items = items,
+    focus = "list",
+    win = {
+      list = {
+        keys = {
+          ["/"] = { "focus_input", mode = { "n" } },
+          ["i"] = { "focus_input", mode = { "n" } },
+        },
+      },
+      input = {
+        title = picker_title or "Claude Code会話履歴",
+      },
+      preview = {
+        title = "会話プレビュー",
+      },
+    },
+    sort = function(a, b)
+      if a.is_new and not b.is_new then
+        return true
+      end
+      if not a.is_new and b.is_new then
+        return false
+      end
+      if a.is_new and b.is_new then
+        return false
+      end
+      if a.is_view_all then
+        return false -- 「全件を見る」は最後に表示
+      end
+      if b.is_view_all then
+        return true
+      end
+
+      local reader = require("ccresume.reader")
+      local time_a = reader.parse_timestamp(a.timestamp) or 0
+      local time_b = reader.parse_timestamp(b.timestamp) or 0
+
+      return time_a > time_b
+    end,
+    format = function(item, _)
+      if item.is_new then
+        return { { "🆕 新しいセッションを開始" } }
+      elseif item.is_view_all then
+        return { { "📋 全件を見る" } }
+      else
+        return { { item.title } }
+      end
+    end,
+    preview = function(ctx)
+      local buf = ctx.buf
+      vim.bo[buf].modifiable = true
+      vim.bo[buf].readonly = false
+
+      if ctx.item.is_new then
+        local lines = {
+          "🚀 新しいClaude Codeセッションを開始",
+          "",
+          "現在のディレクトリ: " .. vim.fn.getcwd(),
+          "",
+          "新しい会話を始めます。",
+        }
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].filetype = "markdown"
+      elseif ctx.item.is_view_all then
+        local lines = {
+          "📋 全件を見る",
+          "",
+          "すべての会話履歴を読み込んで表示します。",
+          "",
+          "Enterキーを押して全件モードに切り替えてください。",
+        }
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].filetype = "markdown"
+      elseif ctx.item.conversation then
+        -- プレビュー表示
+        local conv = ctx.item.conversation
+        local lines = {}
+
+        local duration = 0
+        local reader = require("ccresume.reader")
+        local start_time = reader.parse_timestamp(conv.created_at)
+        if start_time then
+          local end_time = os.time()
+          duration = math.floor((end_time - start_time) / 60)
+        end
+
+        table.insert(lines, string.format("Conversation History (%d messages, %d min)", conv.message_count, duration))
+        table.insert(lines, "")
+        table.insert(lines, "Session: " .. (conv.session_id:sub(1, 8) or "unknown"))
+        table.insert(lines, "Directory: " .. format_project_path(conv.project_path))
+        table.insert(lines, "Branch: -")
+        table.insert(lines, "")
+
+        -- メッセージ表示（簡略版）
+        if conv.messages and #conv.messages > 0 then
+          local reverse_order = config and config.preview and config.preview.reverse_order or false
+          local start_idx, end_idx, step = 1, #conv.messages, 1
+          if reverse_order then
+            start_idx, end_idx, step = #conv.messages, 1, -1
+          end
+
+          for i = start_idx, end_idx, step do
+            local msg = conv.messages[i]
+            if msg and msg.timestamp then
+              local timestamp = reader.parse_timestamp(msg.timestamp) or 0
+              local time_str = timestamp > 0 and os.date("%H:%M:%S", timestamp) or "00:00:00"
+              local role = msg.type == "user" and "User" or "Assistant"
+
+              local content_text = ""
+              if msg.message and msg.message.content then
+                if type(msg.message.content) == "string" then
+                  content_text = msg.message.content
+                end
+              elseif msg.content then
+                if type(msg.content) == "string" then
+                  content_text = msg.content
+                end
+              end
+
+              local first_line = content_text:match("([^\n\r]*)")
+              if first_line and first_line ~= "" then
+                if #first_line > 80 then
+                  first_line = first_line:sub(1, 77) .. "..."
+                end
+                table.insert(lines, string.format("[%s] (%s) %s", role, time_str, first_line))
+              end
+            end
+          end
+        else
+          table.insert(lines, "No messages found")
+        end
+
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].filetype = "markdown"
+      end
+
+      vim.bo[buf].modifiable = false
+      vim.bo[buf].readonly = true
+      return true
+    end,
+    confirm = function(picker_instance, item)
+      if item.is_new then
+        picker_instance:close()
+        start_new_session()
+      elseif item.is_view_all then
+        -- 「全件を見る」が選択された場合
+        picker_instance:close()
+        if view_all_callback then
+          view_all_callback()
+        end
+      else
+        picker_instance:close()
+        start_claude_session(item.conversation)
+      end
+    end,
+  })
+
+  return picker
+end
+
+-- Snacks.nvim picker用の表示関数
+function M.show_with_snacks_picker(conversations, picker_title, start_claude_session, start_new_session, config)
+  local items = create_items(conversations)
 
   local picker = require("snacks.picker").pick({
     source = "ccresume",
@@ -165,7 +352,7 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
         title = "会話プレビュー",
       },
     },
-    -- 最新が上に来るようにソート
+    -- 時系列順でソート
     sort = function(a, b)
       -- 新しいセッションは常に一番上
       if a.is_new and not b.is_new then
@@ -179,44 +366,9 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
       end
 
       -- タイムスタンプで比較（新しい方が上）
-      local time_a = 0
-      local time_b = 0
-
-      if a.timestamp and a.timestamp ~= "" then
-        if type(a.timestamp) == "string" then
-          local year, month, day, hour, min, sec = a.timestamp:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-          if year then
-            time_a = os.time({
-              year = tonumber(year),
-              month = tonumber(month),
-              day = tonumber(day),
-              hour = tonumber(hour),
-              min = tonumber(min),
-              sec = tonumber(sec),
-            })
-          end
-        else
-          time_a = tonumber(a.timestamp) or 0
-        end
-      end
-
-      if b.timestamp and b.timestamp ~= "" then
-        if type(b.timestamp) == "string" then
-          local year, month, day, hour, min, sec = b.timestamp:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-          if year then
-            time_b = os.time({
-              year = tonumber(year),
-              month = tonumber(month),
-              day = tonumber(day),
-              hour = tonumber(hour),
-              min = tonumber(min),
-              sec = tonumber(sec),
-            })
-          end
-        else
-          time_b = tonumber(b.timestamp) or 0
-        end
-      end
+      local reader = require("ccresume.reader")
+      local time_a = reader.parse_timestamp(a.timestamp) or 0
+      local time_b = reader.parse_timestamp(b.timestamp) or 0
 
       return time_a > time_b -- 新しい方が上
     end,
@@ -247,31 +399,13 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
         local conv = ctx.item.conversation
         local lines = {}
 
-        -- ccresumeと同じヘッダー形式
+        -- ヘッダー情報の表示
         local duration = 0
-        if conv.created_at and conv.created_at ~= "" then
-          local end_time = os.time() -- 現在時刻を終了時刻とする
-          local start_time = 0
-
-          if type(conv.created_at) == "string" then
-            local year, month, day, hour, min, sec = conv.created_at:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-            if year then
-              start_time = os.time({
-                year = tonumber(year),
-                month = tonumber(month),
-                day = tonumber(day),
-                hour = tonumber(hour),
-                min = tonumber(min),
-                sec = tonumber(sec),
-              })
-            end
-          else
-            start_time = tonumber(conv.created_at) or 0
-          end
-
-          if start_time > 0 then
-            duration = math.floor((end_time - start_time) / 60) -- 分単位
-          end
+        local reader = require("ccresume.reader")
+        local start_time = reader.parse_timestamp(conv.created_at)
+        if start_time then
+          local end_time = os.time()
+          duration = math.floor((end_time - start_time) / 60) -- 分単位
         end
 
         table.insert(lines, string.format("Conversation History (%d messages, %d min)", conv.message_count, duration))
@@ -284,7 +418,7 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
         local message_line_data = {}
         if conv.messages and #conv.messages > 0 then
           local displayed_messages = 0
-          
+
           -- 設定に基づいてメッセージの順序を決定
           local reverse_order = config and config.preview and config.preview.reverse_order or false
           local start_idx, end_idx, step = 1, #conv.messages, 1
@@ -295,23 +429,7 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
           for i = start_idx, end_idx, step do
             local msg = conv.messages[i]
             if msg and msg.timestamp then
-              local timestamp = 0
-              if type(msg.timestamp) == "string" then
-                local year, month, day, hour, min, sec = msg.timestamp:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-                if year then
-                  timestamp = os.time({
-                    year = tonumber(year),
-                    month = tonumber(month),
-                    day = tonumber(day),
-                    hour = tonumber(hour),
-                    min = tonumber(min),
-                    sec = tonumber(sec),
-                  })
-                end
-              else
-                timestamp = tonumber(msg.timestamp) or 0
-              end
-
+              local timestamp = reader.parse_timestamp(msg.timestamp) or 0
               local time_str = timestamp > 0 and os.date("%H:%M:%S", timestamp) or "00:00:00"
               local role = msg.type == "user" and "User" or "Assistant"
 
@@ -390,11 +508,11 @@ function M.show_with_snacks_picker(conversations, picker_title, start_claude_ses
               local reverse_order = config and config.preview and config.preview.reverse_order or false
               if reverse_order then
                 -- 新しいメッセージが上にある場合は上部を表示
-                vim.api.nvim_win_set_cursor(win, {1, 0})
+                vim.api.nvim_win_set_cursor(win, { 1, 0 })
               else
                 -- 従来通り最下部を表示
                 local line_count = vim.api.nvim_buf_line_count(buf)
-                vim.api.nvim_win_set_cursor(win, {line_count, 0})
+                vim.api.nvim_win_set_cursor(win, { line_count, 0 })
               end
               break
             end

@@ -118,12 +118,54 @@ local function show_with_vim_ui_select(conversations)
   end)
 end
 
--- メイン機能: 会話選択インターフェース
-function M.show_conversations(filter_current_dir)
-  local conversations = reader.read_conversations(filter_current_dir)
+-- 直近モード: 最新N件のみ取得（もっと見る機能付き）
+function M.show_conversations_recent(filter_current_dir, limit)
+  limit = limit or (M.config.performance and M.config.performance.recent_limit or 30)
 
-  local title = filter_current_dir and "Claude Code会話履歴 (現在のディレクトリ)"
-    or "Claude Code会話履歴"
+  local title = filter_current_dir
+      and string.format("Claude Code会話履歴 (現在のディレクトリ) - 直近%d件", limit)
+    or string.format("Claude Code会話履歴 - 直近%d件", limit)
+
+  local current_conversations = reader.read_recent_conversations(filter_current_dir, limit)
+
+  if #current_conversations == 0 then
+    local msg = filter_current_dir and "現在のディレクトリの会話履歴が見つかりません"
+      or "会話履歴が見つかりません"
+    vim.notify(msg, vim.log.levels.WARN)
+    return
+  end
+
+  local ok_snacks = pcall(require, "snacks.picker")
+  if ok_snacks then
+    -- 「全件を見る」コールバック
+    local view_all_callback = function()
+      -- 現在のモードに応じて全件モードに切り替え
+      if filter_current_dir then
+        M.show_conversations_all(true) -- 現在ディレクトリの全件
+      else
+        M.show_conversations_all(false) -- 全体の全件
+      end
+    end
+
+    picker.show_with_snacks_picker_view_all(
+      current_conversations,
+      title,
+      start_claude_session,
+      start_new_session,
+      M.config,
+      view_all_callback
+    )
+  else
+    show_with_vim_ui_select(current_conversations)
+  end
+end
+
+-- 全件モード: 全データを読み込んでから表示
+function M.show_conversations_all(filter_current_dir)
+  local title = filter_current_dir and "Claude Code会話履歴 (現在のディレクトリ) - 全件"
+    or "Claude Code会話履歴 - 全件"
+
+  local conversations = reader.read_conversations(filter_current_dir)
 
   if #conversations == 0 then
     local msg = filter_current_dir and "現在のディレクトリの会話履歴が見つかりません"
@@ -132,60 +174,89 @@ function M.show_conversations(filter_current_dir)
     return
   end
 
-  -- Snacks.nvim pickerを使用してccresume風のプレビュー機能を実装
-  local ok_snacks, snacks = pcall(require, "snacks.picker")
+  local ok_snacks = pcall(require, "snacks.picker")
   if ok_snacks then
-    -- Snacks.nvim pickerでの表示
     picker.show_with_snacks_picker(conversations, title, start_claude_session, start_new_session, M.config)
   else
-    -- フォールバック: vim.ui.selectでシンプル表示
     show_with_vim_ui_select(conversations)
   end
 end
 
--- 現在のディレクトリのみの会話表示
+-- 後方互換性のため残す（デフォルトは直近モード）
+function M.show_conversations(filter_current_dir)
+  M.show_conversations_recent(filter_current_dir)
+end
+
+-- 現在のディレクトリのみの会話表示（直近）
 function M.show_current_dir_conversations()
-  M.show_conversations(true)
+  M.show_conversations_recent(true)
+end
+
+-- 現在のディレクトリのみの会話表示（全件）
+function M.show_current_dir_conversations_all()
+  M.show_conversations_all(true)
 end
 
 -- デフォルト設定
 M.config = {
   preview = {
-    reverse_order = false, -- trueで新しいメッセージを上に表示
-  }
+    reverse_order = false, -- 新しいメッセージを上に表示するか
+  },
+  performance = {
+    recent_limit = 30, -- 直近モードでの初期取得件数
+  },
 }
 
 -- プラグイン設定
 function M.setup(opts)
   opts = opts or {}
-  
+
   -- 設定をマージ
   M.config = vim.tbl_deep_extend("force", M.config, opts)
 
   -- デフォルトのキーマッピング設定
   if opts.keys ~= false then
-    local mappings = opts.keys or {
-      current_dir = "<leader>ch",
-      all = "<leader>cH",
-    }
+    local mappings = opts.keys
+      or {
+        current_dir = "<leader>ch", -- 現在ディレクトリ（直近）
+        current_dir_all = "<leader>cH", -- 現在ディレクトリ（全件）
+        all = "<leader>ca", -- 全体（直近）
+        all_all = "<leader>cA", -- 全体（全件）
+      }
 
     vim.keymap.set("n", mappings.current_dir, M.show_current_dir_conversations, {
-      desc = "現在ディレクトリのClaude Code履歴",
+      desc = "現在ディレクトリのClaude Code履歴（直近）",
+    })
+
+    vim.keymap.set("n", mappings.current_dir_all, M.show_current_dir_conversations_all, {
+      desc = "現在ディレクトリのClaude Code履歴（全件）",
     })
 
     vim.keymap.set("n", mappings.all, M.show_conversations, {
-      desc = "Claude Code履歴（全体）",
+      desc = "Claude Code履歴（直近）",
+    })
+
+    vim.keymap.set("n", mappings.all_all, M.show_conversations_all, {
+      desc = "Claude Code履歴（全件）",
     })
   end
 
   -- デフォルトのコマンド設定
   if opts.commands ~= false then
     vim.api.nvim_create_user_command("CCResume", M.show_conversations, {
-      desc = "Claude Code会話履歴ブラウザを開く",
+      desc = "Claude Code会話履歴ブラウザを開く（直近）",
+    })
+
+    vim.api.nvim_create_user_command("CCResumeAll", M.show_conversations_all, {
+      desc = "Claude Code会話履歴ブラウザを開く（全件）",
     })
 
     vim.api.nvim_create_user_command("CCResumeHere", M.show_current_dir_conversations, {
-      desc = "現在のディレクトリのClaude Code会話履歴を開く",
+      desc = "現在のディレクトリのClaude Code会話履歴を開く（直近）",
+    })
+
+    vim.api.nvim_create_user_command("CCResumeHereAll", M.show_current_dir_conversations_all, {
+      desc = "現在のディレクトリのClaude Code会話履歴を開く（全件）",
     })
   end
 end
