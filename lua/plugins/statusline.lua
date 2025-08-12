@@ -1,124 +1,82 @@
 return {
-  -- LazyVimのデフォルトステータスライン設定を拡張（パフォーマンス最適化版）
+  -- LazyVimのデフォルトlualineにClaude Code使用量表示を追加
   {
     "nvim-lualine/lualine.nvim",
-    event = "VeryLazy", -- 遅延読み込み
+    event = "VeryLazy",
     opts = function(_, opts)
-      -- パフォーマンス最適化：ブランチ変更時のみ更新
-      local git_info_cache = {}
-      
-      local function update_git_info()
-        local git_dir = vim.fn.system("git rev-parse --git-dir 2>/dev/null"):gsub('\n', '')
-        local branch = vim.fn.system("git branch --show-current 2>/dev/null"):gsub('\n', '')
-        local cwd = vim.fn.getcwd()
-        
-        git_info_cache = {
-          branch = branch,
-          is_worktree = git_dir:match("%.git/worktrees") ~= nil,
-          worktree_name = vim.fn.fnamemodify(cwd, ":t"),
-          git_root = git_dir ~= ""
-        }
-      end
-      
-      local function get_git_info()
-        -- 初回またはキャッシュが空の場合のみ実行
-        if not git_info_cache.branch then
-          update_git_info()
+      -- Claude Code使用量取得関数
+      local function get_claude_usage()
+        local cache = vim.g.claude_usage_cache or {}
+        local current_time = os.time()
+
+        -- 30秒キャッシュ
+        if cache.timestamp and (current_time - cache.timestamp) < 30 then
+          return cache.data
         end
-        return git_info_cache
-      end
-      
-      -- ブランチ変更時にキャッシュを更新
-      vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained", "DirChanged" }, {
-        callback = function()
-          update_git_info()
-        end,
-        desc = "Update git info cache when branch might change"
-      })
-      
-      -- 最適化されたブランチ表示
-      local git_branch = {
-        "branch",
-        fmt = function(str)
-          local info = get_git_info()
-          if info.is_worktree then
-            return "🌳 " .. str .. " (" .. info.worktree_name .. ")"
-          else
-            return "🌿 " .. str
-          end
-        end,
-        color = { fg = "#98be65", gui = "bold" },
-      }
-      
-      -- 最適化されたworktree情報
-      local worktree_info = {
-        function()
-          local info = get_git_info()
-          if info.git_root then
-            if info.is_worktree then
-              return "📁 " .. info.worktree_name
-            else
-              return "📁 main"
-            end
-          end
+
+        -- ccusage blocks --active --json から取得（絶対パス使用）
+        local handle = io.popen("/Users/ren/.nodenv/versions/22.18.0/bin/ccusage blocks --active --json 2>/dev/null")
+        if not handle then
           return ""
+        end
+
+        local result = handle:read("*a")
+        handle:close()
+
+        if not result or result == "" then
+          return ""
+        end
+
+        local ok, data = pcall(vim.json.decode, result)
+        if not ok or not data or not data.blocks or #data.blocks == 0 then
+          return ""
+        end
+
+        local block = data.blocks[1]
+        if not block.isActive then
+          return ""
+        end
+
+        -- コストと残り時間を表示
+        local cost = block.costUSD and string.format("$%.2f", block.costUSD) or "$0.00"
+
+        -- 残り時間を取得（projection.remainingMinutes）
+        local remaining_time = ""
+        if block.projection and block.projection.remainingMinutes then
+          local remaining_minutes = block.projection.remainingMinutes
+          local hours = math.floor(remaining_minutes / 60)
+          local minutes = remaining_minutes % 60
+          remaining_time = string.format("%dh %dm", hours, minutes)
+        end
+
+        local display_text = string.format("⏱ %s | %s", remaining_time, cost)
+
+        -- キャッシュ更新
+        vim.g.claude_usage_cache = {
+          timestamp = current_time,
+          data = display_text,
+        }
+
+        return display_text
+      end
+
+      -- Claude Code使用量セクション
+      local claude_usage = {
+        get_claude_usage,
+        color = { fg = "#f4a261" },
+        cond = function()
+          local usage = get_claude_usage()
+          return usage ~= ""
         end,
-        color = { fg = "#61afef", gui = "italic" },
       }
-      
-      -- 左側のセクションにブランチ情報を追加
-      if not opts.sections then opts.sections = {} end
-      if not opts.sections.lualine_b then opts.sections.lualine_b = {} end
-      
-      -- 既存のブランチ表示を置き換え
-      for i, section in ipairs(opts.sections.lualine_b) do
-        if type(section) == "string" and section == "branch" then
-          opts.sections.lualine_b[i] = git_branch
-          break
-        elseif type(section) == "table" and section[1] == "branch" then
-          opts.sections.lualine_b[i] = git_branch
-          break
-        end
-      end
-      
-      -- worktree情報を追加
-      table.insert(opts.sections.lualine_b, worktree_info)
-      
-      return opts
-    end,
-  },
-  
-  -- worktreeとブランチ情報をタイトルに表示
-  {
-    "nvim-neo-tree/neo-tree.nvim",
-    opts = function(_, opts)
-      -- Neo-treeのタイトルにworktree情報を追加
-      if not opts.window then opts.window = {} end
-      
-      opts.window.position = "left"
-      opts.window.width = 35
-      
-      -- カスタムタイトル
-      local function get_neo_tree_title()
-        local cwd = vim.fn.getcwd()
-        local branch = vim.fn.system("git branch --show-current 2>/dev/null"):gsub('\n', '')
-        
-        if cwd:match("%.worktrees") then
-          local worktree_name = vim.fn.fnamemodify(cwd, ":t")
-          return "Neo-tree 🌳 " .. branch .. " (" .. worktree_name .. ")"
-        else
-          return "Neo-tree 🌿 " .. (branch ~= "" and branch or "main")
-        end
-      end
-      
-      -- Neo-treeの表示を更新するautocmd
-      vim.api.nvim_create_autocmd({ "DirChanged", "BufEnter" }, {
-        callback = function()
-          -- タイトルを更新（実際の実装はNeo-treeの制限により難しい）
-          -- 代わりにステータスラインで表示
-        end,
-      })
-      
+
+      -- ステータスラインの設定をマージ
+      opts.sections = opts.sections or {}
+      opts.sections.lualine_x = opts.sections.lualine_x or {}
+
+      -- 右側セクションにClaude使用量を追加
+      table.insert(opts.sections.lualine_x, 1, claude_usage)
+
       return opts
     end,
   },
