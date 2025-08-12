@@ -1,7 +1,11 @@
 --[[
 CCResume for Neovim - Claude Code会話履歴ブラウザ
 独立プラグインとして分離されたccresume機能
-キーバインド: <leader>ch (現在のディレクトリ), <leader>cH (全体)
+キーバインド: 
+  - <leader>ch (現在のディレクトリ・直近)
+  - <leader>cH (現在のディレクトリ・全件)
+  - <leader>ca (全体・直近)
+  - <leader>cA (全体・全件)
 --]]
 
 return {
@@ -13,14 +17,18 @@ return {
   },
   config = function()
     require("ccresume").setup({
-      -- デフォルトのキーマッピングを使用
       keys = {
-        current_dir = "<leader>ch",  -- 現在のディレクトリの会話
-        all = "<leader>cH",          -- 全ての会話
+        current_dir = "<leader>ch",      -- 現在のディレクトリ（直近）
+        current_dir_all = "<leader>cH",  -- 現在のディレクトリ（全件）
+        all = "<leader>ca",              -- 全体（直近）
+        all_all = "<leader>cA",          -- 全体（全件）
       },
-      commands = true,  -- コマンドを有効化
+      commands = true,
       preview = {
-        reverse_order = true,  -- 新しいメッセージを上に表示
+        reverse_order = true,
+      },
+      performance = {
+        recent_limit = 30,
       },
     })
   end,
