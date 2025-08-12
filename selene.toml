@@ -1,0 +1,36 @@
+# Selene Configuration for GitHub Projects Neovim Plugin
+# Lua static analysis and linting rules
+
+std = "lua51+luajit+neovim"
+
+[rules]
+# Core Lua rules
+divide_by_zero = "warn"
+empty_if = "warn"
+if_same_then_else = "warn"
+mismatched_arg_count = "deny"
+parenthese_conditions = "allow"
+suspicious_reverse_loop = "warn" 
+unbalanced_assignments = "warn"
+undefined_variable = "warn"
+unused_variable = "warn"
+
+# Neovim specific rules
+global_usage = "warn"
+incorrect_standard_library_use = "deny"
+mixed_table = "warn"
+multiple_statements = "warn"
+shadowing = "warn"
+unscoped_variables = "warn"
+
+# GitHub Projects specific rules
+high_cyclomatic_complexity = "warn"
+if_same_then_else = "warn"
+manual_table_clone = "warn"
+multiple_statements = "allow"  # Allow for LazyVim pattern compatibility
+unused_function = "warn"
+
+[overrides]
+# LazyVim compatibility exceptions
+"lua/plugins/*.lua" = { unused_variable = "allow" }
+"lua/github_projects/*.lua" = { global_usage = "allow" }
