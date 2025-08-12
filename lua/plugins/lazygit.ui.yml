@@ -1,0 +1,40 @@
+gui:
+  theme:
+    activeBorderColor:
+      - green
+      - bold
+    inactiveBorderColor:
+      - default
+    selectedLineBgColor:
+      - cyan  # 選択行をシアン背景に
+    optionsTextColor:
+      - blue
+  mouseEvents: true
+  showCommandLog: true
+  showBottomLine: true
+
+git:
+  paging:
+    colorArg: always
+    pager: delta --dark --paging=never
+  commit:
+    signOff: false
+  merging:
+    manualCommit: false
+  log:
+    order: 'topo-order'
+    showGraph: 'when-maximised'
+  autoFetch: true
+  autoRefresh: true
+  branchLogCmd: 'git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --'
+
+os:
+  editCommand: 'nvim'
+  editCommandTemplate: '{{editor}} {{filename}}'
+  openCommand: 'open {{filename}}'
+
+refresher:
+  refreshInterval: 10
+  fetchInterval: 60
+
+confirmOnQuit: false
