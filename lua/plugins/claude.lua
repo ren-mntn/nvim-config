@@ -46,7 +46,7 @@ return {
       terminal = {
         split_side = "right",
         split_width_percentage = 0.30,
-        provider = "auto",
+        provider = "snacks",
         -- フローティングウィンドウ設定
         snacks_win_opts = {
           position = "right", -- 右側に配置
@@ -140,7 +140,7 @@ return {
     -- デバッグコマンドを追加
     vim.api.nvim_create_user_command("ClaudeStatusDebug", function()
       claude_status.show_status()
-      
+
       -- 現在のターミナルバッファをリスト
       local terminals = {}
       for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -159,7 +159,7 @@ return {
     vim.api.nvim_create_user_command("ClaudeStatusTest", function()
       claude_status.test_current_buffer()
     end, { desc = "Test monitoring on current buffer" })
-    
+
     -- デバッグモード切り替え
     vim.api.nvim_create_user_command("ClaudeDebugToggle", function()
       claude_status.toggle_debug()
@@ -178,8 +178,8 @@ return {
     -- セッション管理コマンド
     vim.api.nvim_create_user_command("ClaudeSessions", function()
       local sm = get_session_manager()
-      if sm then 
-        sm.show_sessions() 
+      if sm then
+        sm.show_sessions()
       else
         -- フォールバック：基本的なターミナル一覧
         local terminals = {}
@@ -192,7 +192,7 @@ return {
             end
           end
         end
-        
+
         if #terminals > 0 then
           vim.notify("Claude terminals found:\n" .. table.concat(terminals, "\n"), vim.log.levels.INFO)
         else
