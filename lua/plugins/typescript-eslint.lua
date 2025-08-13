@@ -95,7 +95,7 @@ return {
     end,
     keys = {
       {
-        "<leader>cf",
+        "<leader>lf",
         function()
           -- 手動でESLint --fixを実行
           local filename = vim.api.nvim_buf_get_name(0)
@@ -110,7 +110,7 @@ return {
         ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
       },
       {
-        "<leader>ci",
+        "<leader>li",
         function()
           -- 不足インポートを追加
           vim.lsp.buf.code_action({
@@ -122,7 +122,7 @@ return {
         ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
       },
       {
-        "<leader>cI",
+        "<leader>li",
         function()
           -- すべての不足要素を修正
           vim.lsp.buf.code_action({
@@ -134,7 +134,7 @@ return {
         ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
       },
       {
-        "<leader>cu",
+        "<leader>lu",
         function()
           -- 未使用インポートを削除
           vim.lsp.buf.code_action({

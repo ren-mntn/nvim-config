@@ -10,26 +10,55 @@ return {
     "MunifTanjim/nui.nvim",
   },
 
-  -- ↓↓↓ このkeysセクションを追記します ↓↓↓
   keys = {
-    -- この最初の行が、<leader>c を "Claude" という名前のメニューとして定義します
-    { "<leader>c", group = "Claude", desc = "Claude AI Menu" },
-    -- 以下は、そのメニューの中に表示される項目です
-    { "<leader>cc", "<cmd>ClaudeCode<CR>", desc = "Chat" },
-    { "<leader>cr", "<cmd>ClaudeReset<CR>", desc = "Reset Chat" },
-    { "<leader>ca", "<cmd>ClaudeCodeDiffAccept<CR>", desc = "Accept Diff" },
-    { "<leader>cd", "<cmd>ClaudeCodeDiffDeny<CR>", desc = "Deny Diff" },
-    { "<leader>c", "<cmd>ClaudeCode<CR>", desc = "Claude Chat" },
-    -- ノーマルモードで <leader>ca を押すとチャット開始
-    { "<leader>cc", "<cmd>ClaudeCode<CR>", desc = "Claude - Ask (Chat)" },
-    -- チャット履歴をリセット
-    { "<leader>cr", "<cmd>ClaudeReset<CR>", desc = "Claude - Reset Chat" },
-    -- ビジュアルモードでコード選択中に <leader>ca を押すと、そのコードについて質問
+    -- Claude AI統一キーマップ - <leader>j系統
+    { "<leader>j", group = "Claude AI", desc = "Claude AI Tools" },
+
+    -- ========== Claude ターミナル・チャット ==========
+    { "<leader>jj", "<cmd>ClaudeCode<CR>", desc = "Chat" },
+
+    -- ========== Claude Core Operations ==========
+    { "<leader>js", "<cmd>ClaudeCodeStart<CR>", desc = "Start Claude Integration" },
+    { "<leader>jS", "<cmd>ClaudeCodeStop<CR>", desc = "Stop Claude Integration" },
+    { "<leader>ji", "<cmd>ClaudeCodeStatus<CR>", desc = "Show Claude Status" },
+
+    -- ========== File & Context Operations ==========
+    { "<leader>ja", "<cmd>ClaudeCodeAdd %<CR>", desc = "Add Current File to Context" },
     {
-      "<leader>ca",
-      ":'[,']ClaudeCode<CR>",
-      mode = "v",
-      desc = "Claude - Ask about selection",
+      "<leader>jA",
+      function()
+        local file = vim.fn.input("Add file to context: ", "", "file")
+        if file ~= "" then
+          vim.cmd("ClaudeCodeAdd " .. vim.fn.shellescape(file))
+        end
+      end,
+      desc = "Add File to Context (Browse)",
+    },
+
+    -- ========== Claude Diff Operations ==========
+    { "<leader>jy", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept Diff (Yes)" },
+    { "<leader>jn", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Deny Diff (No)" },
+
+    -- ========== Visual Mode - Send Selection ==========
+    {
+      "<leader>j",
+      "<cmd>ClaudeCodeSend<cr>",
+      mode = { "v", "x" },
+      desc = "Send Selection to Claude",
+    },
+
+    -- ========== Sessions Panel ==========
+    {
+      "<leader>jp",
+      function()
+        local sm = pcall(require, "claude-session-manager")
+        if sm and require("claude-session-manager").toggle_persistent_panel then
+          require("claude-session-manager").toggle_persistent_panel()
+        else
+          vim.notify("Sessions panel not available", vim.log.levels.WARN)
+        end
+      end,
+      desc = "Sessions Panel",
     },
   },
 
@@ -52,14 +81,9 @@ return {
           position = "right", -- 右側に配置
           width = 0.4, -- 幅を40%に縮小
           height = 1.0, -- 高さは画面全体
-          border = "rounded",
           backdrop = 0, -- 背景透明度を無効化（右側パネルなので）
-          wo = {
-            winhighlight = "Normal:ClaudeCodeBackground,FloatBorder:ClaudeCodeBorder",
-          },
         },
       },
-
       -- チャットウィンドウのキーマップ設定
       chat = {
         keymaps = {
@@ -76,9 +100,10 @@ return {
       fg = colors.colors.white, -- 白い文字色
     })
 
-    vim.api.nvim_set_hl(0, "ClaudeCodeBorder", {
-      bg = colors.colors.background, -- ボーダーも同じ背景色
-      fg = "#666666", -- グレーのボーダー色
+    -- フォーカス時の背景（少し明るく）
+    vim.api.nvim_set_hl(0, "ClaudeCodeBackgroundFocused", {
+      bg = "#383737", -- 少し明るい背景
+      fg = colors.colors.white,
     })
 
     -- Shift+Enterのマッピングを手動で追加（オプション）
@@ -86,6 +111,37 @@ return {
       pattern = "claudecode",
       callback = function()
         vim.keymap.set("i", "<S-CR>", "<C-j>", { buffer = true, desc = "Insert new line" })
+      end,
+    })
+
+    -- ClaudeCodeウィンドウのフォーカス管理
+    local function update_claude_border()
+      -- すべてのウィンドウをチェック
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        local ok, buf = pcall(vim.api.nvim_win_get_buf, win)
+        if ok then
+          local bufname = vim.api.nvim_buf_get_name(buf)
+          local buftype = vim.api.nvim_buf_get_option(buf, "buftype")
+
+          -- ターミナルバッファかつClaudeCodeのバッファを探す
+          if buftype == "terminal" and (bufname:match("claude") or bufname:match("ClaudeCode")) then
+            -- 現在のウィンドウかチェック
+            if win == vim.api.nvim_get_current_win() then
+              -- フォーカスあり：明るい背景
+              pcall(vim.api.nvim_win_set_option, win, "winhighlight", "Normal:ClaudeCodeBackgroundFocused")
+            else
+              -- フォーカスなし：通常の背景
+              pcall(vim.api.nvim_win_set_option, win, "winhighlight", "Normal:ClaudeCodeBackground")
+            end
+          end
+        end
+      end
+    end
+
+    -- ウィンドウフォーカス変更時にボーダー更新
+    vim.api.nvim_create_autocmd({ "WinEnter", "WinLeave", "TermOpen", "TermClose" }, {
+      callback = function()
+        vim.defer_fn(update_claude_border, 50)
       end,
     })
 
@@ -227,7 +283,7 @@ return {
     end, { desc = "Claude Sessions List" })
 
     -- 右上固定パネル（重要な機能）
-    vim.keymap.set("n", "<leader>cp", function()
+    vim.keymap.set("n", "<leader>jp", function()
       local sm = get_session_manager()
       if sm and sm.toggle_persistent_panel then
         sm.toggle_persistent_panel()

@@ -13,32 +13,32 @@ return {
   event = "VeryLazy",
   keys = {
     {
-      "<leader>ch",
+      "<leader>jr",
       function()
         require("ccresume").show_current_dir_conversations()
       end,
-      desc = "現在ディレクトリのClaude Code履歴（直近）",
+      desc = "Resume (Current Dir)",
     },
     {
-      "<leader>cH",
+      "<leader>jR",
       function()
         require("ccresume").show_current_dir_conversations_all()
       end,
-      desc = "現在ディレクトリのClaude Code履歴（全件）",
+      desc = "Resume All (Current Dir)",
     },
     {
-      "<leader>ca",
-      function()
-        require("ccresume").show_conversations()
-      end,
-      desc = "Claude Code履歴（直近）",
-    },
-    {
-      "<leader>cA",
+      "<leader>j/",
       function()
         require("ccresume").show_conversations_all()
       end,
-      desc = "Claude Code履歴（全件）",
+      desc = "All Resume",
+    },
+    {
+      "<leader>jl",
+      function()
+        require("ccresume").show_conversations()
+      end,
+      desc = "Sessions List",
     },
   },
   opts = function(_, opts)
