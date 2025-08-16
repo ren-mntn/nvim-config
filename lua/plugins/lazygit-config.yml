@@ -1,0 +1,68 @@
+gui:
+  theme:
+    # 背景色をグレー系に設定
+    activeBorderColor:
+      - "#e8e8e8"
+      - bold
+    inactiveBorderColor:
+      - "#808080"
+    selectedLineBgColor:
+      - "#606060"
+    optionsTextColor:
+      - "#D0D0D0"
+    defaultFgColor:
+      - "#E0E0E0"
+    # フォーカスが外れた際の選択行の背景色
+    inactiveViewSelectedLineBgColor:
+      - "#505050"
+    # リベース用マークされたベースコミットの背景色
+    markedBaseCommitBgColor:
+      - "#505050"
+    # 検索中のアクティブウィンドウ境界線色
+    searchingActiveBorderColor:
+      - "#808080"
+      - bold
+    unstagedChangesColor:
+      - "#FF6B6B"
+    cherryPickedCommitBgColor:
+      - "#606060"
+    cherryPickedCommitFgColor:
+      - "#D0D0D0"
+    # リベース用マークされたベースコミットの前景色
+    markedBaseCommitFgColor:
+      - "#C0C0C0"
+  mouseEvents: true
+  showCommandLog: true
+  showBottomLine: true
+  # 差分表示を左右分割に設定
+  sidePanelWidth: 0.2 # 左パネル30%、右パネル70%
+  mainPanelSplitMode: "horizontal" # フレキシブルレイアウト
+
+git:
+  paging:
+    # pagerを使用（左右分割表示）
+    colorArg: always
+    pager: delta --dark --side-by-side --paging=never
+  commit:
+    signOff: false
+  merging:
+    manualCommit: false
+  log:
+    order: "topo-order"
+    showGraph: "when-maximised"
+  autoFetch: true
+  autoRefresh: true
+  branchLogCmd: "git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --"
+  # 差分表示コマンドの設定
+  diffContextSize: 3
+
+os:
+  editCommand: "nvim"
+  editCommandTemplate: "{{editor}} {{filename}}"
+  openCommand: "open {{filename}}"
+
+refresher:
+  refreshInterval: 10
+  fetchInterval: 60
+
+confirmOnQuit: false
