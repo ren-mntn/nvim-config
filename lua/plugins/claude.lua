@@ -102,7 +102,7 @@ return {
 
     -- フォーカス時の背景（少し明るく）
     vim.api.nvim_set_hl(0, "ClaudeCodeBackgroundFocused", {
-      bg = "#383737", -- 少し明るい背景
+      bg = "#262525", -- 少し明るい背景
       fg = colors.colors.white,
     })
 
