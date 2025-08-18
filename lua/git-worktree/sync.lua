@@ -145,10 +145,50 @@ function M.setup_git_config(worktree_path)
   )
 end
 
+-- .envファイル専用のコピー処理（モノレポ対応）
+function M.sync_env_files(worktree_path, git_root)
+  local utils = require("git-worktree.utils")
+  
+  -- findコマンドで.env系ファイルを再帰的に検索
+  local find_cmd = string.format(
+    "find %s -type f \\( -name '.env' -o -name '.env.*' -o -name '.envrc' \\) -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null",
+    vim.fn.shellescape(git_root)
+  )
+  
+  local env_files = vim.fn.systemlist(find_cmd)
+  
+  if #env_files == 0 then
+    return
+  end
+  
+  vim.notify(string.format("🔍 %d個の.envファイルを発見", #env_files))
+  
+  for _, src_file in ipairs(env_files) do
+    -- git_rootからの相対パスを計算
+    local relative_path = src_file:sub(#git_root + 2)
+    local dst_file = worktree_path .. "/" .. relative_path
+    
+    -- ディレクトリが存在しない場合は作成
+    local dst_dir = vim.fn.fnamemodify(dst_file, ":h")
+    if vim.fn.isdirectory(dst_dir) == 0 then
+      vim.fn.mkdir(dst_dir, "p")
+    end
+    
+    -- コピー先に既に.envファイルがある場合はスキップ
+    if vim.fn.filereadable(dst_file) == 0 then
+      utils.safe_copy_file(src_file, dst_file)
+      vim.notify(string.format("📋 %s をコピー", relative_path))
+    else
+      vim.notify(string.format("⏭️ %s はスキップ（既存）", relative_path))
+    end
+  end
+end
+
 function M.sync_all_files(worktree_path, git_root, dot_files)
   M.setup_git_config(worktree_path)
   M.sync_project_directories(worktree_path, git_root)
   M.sync_project_files(worktree_path, git_root)
+  M.sync_env_files(worktree_path, git_root)  -- .envファイルのコピー
   M.sync_dotfiles(worktree_path, git_root, dot_files)
 end
 
