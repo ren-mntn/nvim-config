@@ -233,4 +233,90 @@ function M.open_in_terminal(worktree_item)
   )
 end
 
+function M.switch_to_main_branch()
+  local config = require("git-worktree.config")
+  local git_root = config.get_git_root()
+
+  if not git_root then
+    vim.notify("Not a Git repository", vim.log.levels.ERROR)
+    return
+  end
+
+  -- mainブランチ名を取得（main or master）
+  local main_branch_result =
+    vim.fn.system("cd " .. vim.fn.shellescape(git_root) .. " && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null")
+  local main_branch = "main"
+
+  if main_branch_result and main_branch_result ~= "" then
+    main_branch = main_branch_result:match("refs/remotes/origin/(.-)%s*$") or "main"
+  else
+    -- フォールバック: main か master かチェック
+    local has_main =
+      vim.fn.system("cd " .. vim.fn.shellescape(git_root) .. " && git show-ref --verify --quiet refs/heads/main")
+    local has_master =
+      vim.fn.system("cd " .. vim.fn.shellescape(git_root) .. " && git show-ref --verify --quiet refs/heads/master")
+
+    if vim.v.shell_error == 0 then
+      main_branch = "main"
+    elseif vim.fn.system(has_master) and vim.v.shell_error == 0 then
+      main_branch = "master"
+    end
+  end
+
+  local current_path = vim.fn.getcwd()
+  local current_branch = vim.fn.system("git branch --show-current 2>/dev/null"):gsub("\n", "")
+
+  -- 既にmainプロジェクトのmainブランチにいる場合
+  if current_path == git_root and current_branch == main_branch then
+    vim.notify("Already on " .. main_branch .. " branch in main project", vim.log.levels.INFO)
+    return
+  end
+
+  -- mainプロジェクトに移動
+  if current_path ~= git_root then
+    M.switch_worktree(git_root, main_branch)
+  end
+
+  -- mainブランチに切り替え
+  vim.schedule(function()
+    vim.defer_fn(function()
+      local checkout_result =
+        vim.fn.system("cd " .. vim.fn.shellescape(git_root) .. " && git checkout " .. main_branch .. " 2>&1")
+
+      if vim.v.shell_error == 0 then
+        vim.notify("Switched to " .. main_branch .. " branch", vim.log.levels.INFO)
+      else
+        -- mainブランチが他のworktreeで使用中の場合の処理
+        if checkout_result:match("is already checked out at") then
+          -- 使用中のworktreeパスを抽出
+          local worktree_path = checkout_result:match("is already checked out at '([^']+)'")
+          if worktree_path then
+            local worktree_name = vim.fn.fnamemodify(worktree_path, ":t")
+            vim.notify(
+              string.format(
+                "%s branch is currently used in worktree '%s'.\nSwitching to that worktree instead.",
+                main_branch,
+                worktree_name
+              ),
+              vim.log.levels.WARN
+            )
+            -- 使用中のworktreeに切り替え
+            M.switch_worktree(worktree_path, main_branch)
+          else
+            vim.notify(
+              string.format(
+                "%s branch is being used in another worktree.\nPlease check worktree list and switch to the correct one.",
+                main_branch
+              ),
+              vim.log.levels.WARN
+            )
+          end
+        else
+          vim.notify("Failed to switch to " .. main_branch .. " branch: " .. checkout_result, vim.log.levels.ERROR)
+        end
+      end
+    end, 500)
+  end)
+end
+
 return M

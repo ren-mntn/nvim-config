@@ -18,7 +18,7 @@ function M.show_worktree_list()
   Snacks.picker({
     source = "static",
     items = worktree_list,
-    title = "Git Worktrees [Enter: 切り替え | d: 削除 | D: 一括削除 | t: iTerm | ?: ヘルプ]",
+    title = "Git Worktrees [Enter: 切り替え | m: mainブランチ | d: 削除 | D: 一括削除 | t: iTerm | ?: ヘルプ]",
     sort = false,
     format = function(item, picker)
       return { { item.display } }
@@ -76,6 +76,13 @@ function M.show_worktree_list()
           manager.open_in_terminal(item)
         end)
       end,
+      switch_to_main = function(picker)
+        picker:close()
+
+        vim.schedule(function()
+          manager.switch_to_main_branch()
+        end)
+      end,
     },
     win = {
       input = {
@@ -92,10 +99,14 @@ function M.show_worktree_list()
             "open_in_iterm",
             mode = { "n", "i" },
           },
+          ["m"] = {
+            "switch_to_main",
+            mode = { "n", "i" },
+          },
           ["?"] = {
             function(picker)
               vim.notify(
-                "Git Worktree操作ヘルプ:\n\n⌨️  キー操作:\n  Enter      : 選択したWorktreeに切り替え\n  d          : 選択したWorktreeを削除 (確認あり)\n  D          : main以外の全Worktreeを削除 (確認あり)\n  t          : 選択したWorktreeでiTerm2タブを開く\n  Esc        : ピッカーを閉じる\n  ?          : このヘルプを表示\n\n🚀 機能:\n  • Worktree間の高速切り替え\n  • 個別・一括での安全な削除\n  • iTerm2タブでWorktree開く\n  • メインプロジェクトは削除不可\n\n💡 ヒント:\n  削除時は「y」で実行、「N」でキャンセル\n  Ctrl+d, Ctrl+tも利用可能",
+                "Git Worktree操作ヘルプ:\n\n⌨️  キー操作:\n  Enter      : 選択したWorktreeに切り替え\n  m          : mainブランチに直接切り替え\n  d          : 選択したWorktreeを削除 (確認あり)\n  D          : main以外の全Worktreeを削除 (確認あり)\n  t          : 選択したWorktreeでiTerm2タブを開く\n  Esc        : ピッカーを閉じる\n  ?          : このヘルプを表示\n\n🚀 機能:\n  • Worktree間の高速切り替え\n  • mainブランチへの直接切り替え\n  • 個別・一括での安全な削除\n  • iTerm2タブでWorktree開く\n  • メインプロジェクトは削除不可\n\n💡 ヒント:\n  削除時は「y」で実行、「N」でキャンセル\n  「m」キーでいつでもmainブランチに戻れます\n  Ctrl+d, Ctrl+tも利用可能",
                 vim.log.levels.INFO
               )
             end,
@@ -108,6 +119,7 @@ function M.show_worktree_list()
           ["d"] = { "worktree_delete", mode = "n" },
           ["D"] = { "worktree_delete_all", mode = "n" },
           ["t"] = { "open_in_iterm", mode = "n" },
+          ["m"] = { "switch_to_main", mode = "n" },
         },
       },
     },
