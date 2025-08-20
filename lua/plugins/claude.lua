@@ -145,6 +145,24 @@ return {
       end,
     })
 
+    -- ClaudeCodeターミナルのフォーカス時に自動でinsertモードに入る
+    vim.api.nvim_create_autocmd("WinEnter", {
+      callback = function()
+        local win = vim.api.nvim_get_current_win()
+        local ok, buf = pcall(vim.api.nvim_win_get_buf, win)
+        if ok then
+          local bufname = vim.api.nvim_buf_get_name(buf)
+          local buftype = vim.api.nvim_buf_get_option(buf, "buftype")
+
+          -- ターミナルバッファかつClaudeCodeのバッファの場合、insertモードに入る
+          if buftype == "terminal" and (bufname:match("claude") or bufname:match("ClaudeCode")) then
+            -- ターミナルモードに入る（ターミナルでは自動的にinsertモード相当になる）
+            vim.cmd("startinsert")
+          end
+        end
+      end,
+    })
+
     -- ClaudeCode イベント監視の設定
     local augroup = vim.api.nvim_create_augroup("ClaudeStatusMonitor", { clear = true })
 
