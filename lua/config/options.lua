@@ -37,6 +37,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
 
 vim.opt.spell = false -- すべてのファイルでスペルチェックを無効にする
 
+-- 自動フォーマットを無効化（手動でフォーマットする方が安全）
+vim.g.autoformat = false
+
 -- swapファイル関連の設定
 vim.opt.swapfile = false -- swapファイルを無効化（推奨）
 -- または以下の設定でswap警告を自動処理
