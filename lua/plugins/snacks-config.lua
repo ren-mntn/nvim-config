@@ -71,6 +71,48 @@ return {
       },
     })
 
+    -- statuscolumn無効化（statuscolプラグインを使用するため）
+    opts.statuscolumn = vim.tbl_deep_extend("force", opts.statuscolumn or {}, {
+      enabled = false, -- snacks.nvimのstatuscolumnを無効化
+    })
+
+    -- Zen Mode設定
+    opts.zen = vim.tbl_deep_extend("force", opts.zen or {}, {
+      enabled = true, -- Zenモード有効
+      toggles = {
+        dim = false, -- 周りのウィンドウを暗転
+        git_signs = false, -- Git表示を隠す
+        mini_diff_signs = false, -- MiniDiff表示を隠す
+        diagnostics = false, -- 診断を隠す
+        inlay_hints = false, -- インレイヒントを隠す
+      },
+      show = {
+        statusline = false, -- ステータスライン非表示
+        tabline = false, -- タブライン非表示
+      },
+      win = { style = "zen" }, -- zenスタイル使用
+      -- Zenモード開始時のコールバック
+      on_open = function(win)
+        -- 必要に応じてカスタム処理
+      end,
+      -- Zenモード終了時のコールバック
+      on_close = function(win)
+        -- 必要に応じてカスタム処理
+      end,
+      -- ズームモード設定
+      zoom = {
+        toggles = {}, -- ズーム時はトグルしない
+        show = {
+          statusline = true, -- ステータスライン表示維持
+          tabline = true, -- タブライン表示維持
+        },
+        win = {
+          backdrop = true, -- 背景暗転しない
+          width = 0, -- 全画面幅
+        },
+      },
+    })
+
     return opts
   end,
   config = function(_, opts)
@@ -446,6 +488,22 @@ return {
         require("snacks").picker.treesitter()
       end,
       desc = "Treesitter Symbols",
+    },
+
+    -- Zen Mode関連
+    {
+      "<leader>z",
+      function()
+        require("snacks").zen()
+      end,
+      desc = "Toggle Zen Mode",
+    },
+    {
+      "<leader>Z",
+      function()
+        require("snacks").zen.zoom()
+      end,
+      desc = "Toggle Zoom Mode",
     },
 
     -- その他便利機能（通知履歴は一時的に無効化 - Snacksのバグ回避）
