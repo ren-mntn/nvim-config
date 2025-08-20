@@ -10,12 +10,7 @@ vim.keymap.set("n", "<leader>q", "<cmd>q<CR>", { desc = "Quit" })
 vim.keymap.set("n", "<leader>Q", "<cmd>qa<CR>", { desc = "Quit all" })
 vim.keymap.set("n", "<leader>x", "<cmd>x<CR>", { desc = "Save and quit" })
 
--- タブ移動
-vim.keymap.set({"n", "i"}, "<C-PageDown>", "<cmd>bnext<CR>", { desc = "Next Buffer" })
-vim.keymap.set({"n", "i"}, "<C-PageUp>", "<cmd>bprevious<CR>", { desc = "Previous Buffer" })
 
--- バッファ削除(iTerm2から<F15>として送信)
-vim.keymap.set({ "n", "i" }, "<F15>", "<cmd>bdelete<CR>", { desc = "Close Buffer" })
 
 -- Cmd+Shift+F (iTerm2から<F16>として送信) を <leader>/ にマッピングする
 vim.keymap.set("n", "<F16>", "<leader>/", { remap = true, desc = "Live Grep (Cmd+Shift+F)" })
