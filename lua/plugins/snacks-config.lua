@@ -303,6 +303,42 @@ return {
 
     -- Git関連（競合回避のため一部キー変更）
     {
+      "<leader>gb",
+      function()
+        require("snacks").git.blame_line({
+          width = 0.8,
+          height = 0.6,
+          border = "rounded",
+          title = " Git Blame ",
+          title_pos = "center",
+          ft = "git",
+        })
+      end,
+      desc = "Git Blame Line",
+    },
+    {
+      "<leader>gv",
+      function()
+        vim.cmd("Gvdiffsplit")
+      end,
+      desc = "Git Diff Split (Current File)",
+    },
+    {
+      "<leader>gu",
+      function()
+        vim.cmd("Git restore --staged %")
+        vim.notify("Current file unstaged", vim.log.levels.INFO)
+      end,
+      desc = "Git Unstage Current File",
+    },
+    {
+      "<leader>gP",
+      function()
+        vim.cmd("Git add --patch %")
+      end,
+      desc = "Git Patch Add (Current File)",
+    },
+    {
       "<leader>gF",
       function()
         require("snacks").picker.git_files()
