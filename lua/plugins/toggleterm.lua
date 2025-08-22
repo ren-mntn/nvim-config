@@ -18,9 +18,13 @@ return {
     -- カスタムターミナル
     { "<leader>tg", "<cmd>lua _lazygit_toggle()<cr>", desc = "Toggle LazyGit" },
     -- 代替LazyGitコマンド（ターミナル環境でのフォールバック）
-    { "<leader>tG", function()
-      vim.cmd("!lazygit")
-    end, desc = "LazyGit (external)" },
+    {
+      "<leader>tG",
+      function()
+        vim.cmd("!lazygit")
+      end,
+      desc = "LazyGit (external)",
+    },
     -- フロートターミナル（位置別）
     { "<leader>ts", "<cmd>lua _terminal_top_left_toggle()<cr>", desc = "Terminal Top Left" },
     { "<leader>td", "<cmd>lua _terminal_top_toggle()<cr>", desc = "Terminal Top Center" },
@@ -98,23 +102,21 @@ return {
     -- ターミナルキーマップとサイズ変更の共通関数
     local function setup_terminal_keymaps(term)
       vim.cmd("startinsert!")
+
       -- 基本的なキーマップ
       vim.keymap.set("t", "<C-c>", "<C-c>", { silent = true, buffer = term.bufnr, desc = "Stop process" })
-      vim.keymap.set("t", "<C-q>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-      
-      -- シンプルなキーマップ
-      vim.keymap.set("t", "q", function() 
+      vim.keymap.set("t", "<C-q>", function()
         -- 完全に終了させる（プロセスとバッファを削除）
         term:shutdown()
         if vim.api.nvim_buf_is_valid(term.bufnr) then
           vim.api.nvim_buf_delete(term.bufnr, { force = true })
         end
-      end, { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-      
-      vim.keymap.set("t", "<Esc>", function() 
-        term:toggle()  -- 常に隠すだけ
+      end, { silent = true, buffer = term.bufnr, desc = "Close terminal completely" })
+
+      vim.keymap.set("t", "<Esc>", function()
+        term:toggle() -- 常に隠すだけ
       end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
-      
+
       -- サイズ変更キーマップ
       vim.keymap.set("t", "<C-+>", function()
         local win = term.window
@@ -122,27 +124,87 @@ return {
           vim.api.nvim_win_set_width(win, math.min(vim.api.nvim_win_get_width(win) + 10, vim.o.columns - 10))
         end
       end, { silent = true, buffer = term.bufnr, desc = "Increase width" })
-      
+
       vim.keymap.set("t", "<C-->", function()
         local win = term.window
         if win then
           vim.api.nvim_win_set_width(win, math.max(vim.api.nvim_win_get_width(win) - 10, 40))
         end
       end, { silent = true, buffer = term.bufnr, desc = "Decrease width" })
-      
+
       vim.keymap.set("t", "<C-S-+>", function()
         local win = term.window
         if win then
           vim.api.nvim_win_set_height(win, math.min(vim.api.nvim_win_get_height(win) + 5, vim.o.lines - 5))
         end
       end, { silent = true, buffer = term.bufnr, desc = "Increase height" })
-      
+
       vim.keymap.set("t", "<C-S-->", function()
         local win = term.window
         if win then
           vim.api.nvim_win_set_height(win, math.max(vim.api.nvim_win_get_height(win) - 5, 10))
         end
       end, { silent = true, buffer = term.bufnr, desc = "Decrease height" })
+
+      -- フルスクリーン切り替え
+      vim.keymap.set("t", "<C-f>", function()
+        local win = term.window
+        if win and vim.api.nvim_win_is_valid(win) then
+          local ok_width, current_width = pcall(vim.api.nvim_win_get_width, win)
+          local ok_height, current_height = pcall(vim.api.nvim_win_get_height, win)
+
+          -- エラーハンドリング
+          if not ok_width or not ok_height then
+            vim.notify(
+              "フルスクリーン切り替えエラー: ウィンドウ情報取得失敗",
+              vim.log.levels.WARN
+            )
+            return
+          end
+
+          -- デフォルトサイズを定義
+          local default_width = 80
+          local default_height = 20
+
+          -- 現在がフルスクリーンかチェック（大体の値で判断）
+          if current_width > vim.o.columns * 0.8 and current_height > vim.o.lines * 0.8 then
+            -- フルスクリーンから戻す：デフォルトサイズで中央配置
+            local ok1 = pcall(vim.api.nvim_win_set_width, win, default_width)
+            local ok2 = pcall(vim.api.nvim_win_set_height, win, default_height)
+
+            if ok1 and ok2 then
+              -- 中央配置
+              local ok_config, config = pcall(vim.api.nvim_win_get_config, win)
+              if ok_config then
+                config.row = math.floor((vim.o.lines - default_height) / 2)
+                config.col = math.floor((vim.o.columns - default_width) / 2)
+                pcall(vim.api.nvim_win_set_config, win, config)
+              end
+            else
+              vim.notify("ウィンドウサイズ変更エラー", vim.log.levels.WARN)
+            end
+          else
+            -- フルスクリーンにする
+            local full_width = math.floor(vim.o.columns * 0.9)
+            local full_height = math.floor(vim.o.lines * 0.9)
+
+            local ok1 = pcall(vim.api.nvim_win_set_width, win, full_width)
+            local ok2 = pcall(vim.api.nvim_win_set_height, win, full_height)
+
+            if ok1 and ok2 then
+              -- 中央に配置
+              local ok_config, config = pcall(vim.api.nvim_win_get_config, win)
+              if ok_config then
+                config.row = math.floor((vim.o.lines - full_height) / 2)
+                config.col = math.floor((vim.o.columns - full_width) / 2)
+                pcall(vim.api.nvim_win_set_config, win, config)
+              end
+            else
+              vim.notify("フルスクリーン変更エラー", vim.log.levels.WARN)
+            end
+          end
+        end
+      end, { silent = true, buffer = term.bufnr, desc = "Toggle fullscreen" })
     end
 
     -- 6つの位置別フロートターミナル
@@ -150,7 +212,7 @@ return {
     local terminal_height = 20
     local margin = 5
 
-    -- 左上
+    -- 中央配置ターミナル1
     local terminal_top_left = Terminal:new({
       hidden = true,
       direction = "float",
@@ -158,15 +220,19 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = margin,
-        col = margin,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
       close_on_exit = false,
     })
 
-    -- 上中央
+    -- 中央配置ターミナル2
     local terminal_top = Terminal:new({
       hidden = true,
       direction = "float",
@@ -174,15 +240,19 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = margin,
-        col = function() return math.floor((vim.o.columns - terminal_width) / 2) end,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
       close_on_exit = false,
     })
 
-    -- 右上
+    -- 中央配置ターミナル3
     local terminal_top_right = Terminal:new({
       hidden = true,
       direction = "float",
@@ -190,15 +260,19 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = margin,
-        col = function() return vim.o.columns - terminal_width - margin end,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
       close_on_exit = false,
     })
 
-    -- 左下
+    -- 中央配置ターミナル4
     local terminal_bottom_left = Terminal:new({
       hidden = true,
       direction = "float",
@@ -206,15 +280,19 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = function() return vim.o.lines - terminal_height - margin - 2 end,
-        col = margin,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
       close_on_exit = false,
     })
 
-    -- 下中央
+    -- 中央配置ターミナル5
     local terminal_bottom = Terminal:new({
       hidden = true,
       direction = "float",
@@ -222,15 +300,19 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = function() return vim.o.lines - terminal_height - margin - 2 end,
-        col = function() return math.floor((vim.o.columns - terminal_width) / 2) end,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
       close_on_exit = false,
     })
 
-    -- 右下
+    -- 中央配置ターミナル6
     local terminal_bottom_right = Terminal:new({
       hidden = true,
       direction = "float",
@@ -238,8 +320,12 @@ return {
         border = "rounded",
         width = terminal_width,
         height = terminal_height,
-        row = function() return vim.o.lines - terminal_height - margin - 2 end,
-        col = function() return vim.o.columns - terminal_width - margin end,
+        row = function()
+          return math.floor((vim.o.lines - terminal_height) / 2)
+        end,
+        col = function()
+          return math.floor((vim.o.columns - terminal_width) / 2)
+        end,
         winblend = 10,
       },
       on_open = setup_terminal_keymaps,
@@ -253,102 +339,29 @@ return {
       direction = "float",
       float_opts = {
         border = "rounded",
-        width = 100,  -- 100文字幅（2倍）
-        height = 2,   -- 3行高さ
-        row = 1,      -- 最上部
-        col = function() return vim.o.columns - 105 end, -- 右上（マージン5文字）
+        width = 100, -- 100文字幅（2倍）
+        height = 2, -- 3行高さ
+        row = 1, -- 最上部
+        col = function()
+          return vim.o.columns - 105
+        end, -- 右上（マージン5文字）
         winblend = 15, -- 少し透明
       },
       on_open = function(term)
         vim.cmd("startinsert!")
         -- 小さなターミナル用のキーマップ
-        vim.keymap.set("t", "<C-q>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-        vim.keymap.set("t", "q", function() term:close() end, { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-        vim.keymap.set("t", "<Esc>", function() term:toggle() end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
+        vim.keymap.set("t", "<C-q>", function()
+          -- 完全に終了させる（プロセスとバッファを削除）
+          term:shutdown()
+          if vim.api.nvim_buf_is_valid(term.bufnr) then
+            vim.api.nvim_buf_delete(term.bufnr, { force = true })
+          end
+        end, { silent = true, buffer = term.bufnr, desc = "Close terminal completely" })
+        vim.keymap.set("t", "<Esc>", function()
+          term:toggle()
+        end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
       end,
       close_on_exit = false,
-    })
-
-    -- 開発サーバー専用（小さめのフロートウィンドウ）
-    local dev_server = Terminal:new({ 
-      hidden = true, 
-      direction = "float",
-      float_opts = {
-        border = "rounded",
-        width = 80,   -- 固定幅（文字数）
-        height = 20,  -- 固定高さ（行数）
-        row = 5,      -- 上から5行目に配置
-        col = 10,     -- 左から10文字目に配置
-        winblend = 10, -- 少し透明
-      },
-      on_open = function(term)
-        vim.cmd("startinsert!")
-        -- 開発サーバー用のカスタムキーマップ
-        vim.keymap.set("t", "<C-c>", "<C-c>", { silent = true, buffer = term.bufnr, desc = "Stop dev server" })
-        vim.keymap.set("t", "<C-q>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-        vim.keymap.set("t", "q", function() term:close() end, { silent = true, buffer = term.bufnr, desc = "Close terminal" })
-        vim.keymap.set("t", "<Esc>", function() term:toggle() end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
-        
-        -- ウィンドウサイズ変更キーマップ
-        vim.keymap.set("t", "<C-+>", function()
-          local win = term.window
-          if win then
-            vim.api.nvim_win_set_width(win, math.min(vim.api.nvim_win_get_width(win) + 10, vim.o.columns - 10))
-          end
-        end, { silent = true, buffer = term.bufnr, desc = "Increase width" })
-        
-        vim.keymap.set("t", "<C-->", function()
-          local win = term.window
-          if win then
-            vim.api.nvim_win_set_width(win, math.max(vim.api.nvim_win_get_width(win) - 10, 40))
-          end
-        end, { silent = true, buffer = term.bufnr, desc = "Decrease width" })
-        
-        vim.keymap.set("t", "<C-S-+>", function()
-          local win = term.window
-          if win then
-            vim.api.nvim_win_set_height(win, math.min(vim.api.nvim_win_get_height(win) + 5, vim.o.lines - 5))
-          end
-        end, { silent = true, buffer = term.bufnr, desc = "Increase height" })
-        
-        vim.keymap.set("t", "<C-S-->", function()
-          local win = term.window
-          if win then
-            vim.api.nvim_win_set_height(win, math.max(vim.api.nvim_win_get_height(win) - 5, 10))
-          end
-        end, { silent = true, buffer = term.bufnr, desc = "Decrease height" })
-        
-        -- フルスクリーン切り替え
-        vim.keymap.set("t", "<C-f>", function()
-          local win = term.window
-          if win then
-            local current_width = vim.api.nvim_win_get_width(win)
-            local current_height = vim.api.nvim_win_get_height(win)
-            
-            -- 現在がフルスクリーンかチェック（大体の値で判断）
-            if current_width > vim.o.columns * 0.8 and current_height > vim.o.lines * 0.8 then
-              -- 小さく戻す
-              vim.api.nvim_win_set_width(win, 80)
-              vim.api.nvim_win_set_height(win, 20)
-              -- 位置も調整
-              local config = vim.api.nvim_win_get_config(win)
-              config.row = 5
-              config.col = 10
-              vim.api.nvim_win_set_config(win, config)
-            else
-              -- フルスクリーンにする
-              vim.api.nvim_win_set_width(win, math.floor(vim.o.columns * 0.9))
-              vim.api.nvim_win_set_height(win, math.floor(vim.o.lines * 0.9))
-              -- 中央に配置
-              local config = vim.api.nvim_win_get_config(win)
-              config.row = math.floor((vim.o.lines - math.floor(vim.o.lines * 0.9)) / 2)
-              config.col = math.floor((vim.o.columns - math.floor(vim.o.columns * 0.9)) / 2)
-              vim.api.nvim_win_set_config(win, config)
-            end
-          end
-        end, { silent = true, buffer = term.bufnr, desc = "Toggle fullscreen" })
-      end,
-      close_on_exit = false, -- プロセス終了時もターミナルを閉じない
     })
 
     -- その他のターミナル
@@ -363,14 +376,10 @@ return {
 
     function _G._python_toggle()
       python:toggle()
-    end  
+    end
 
     function _G._htop_toggle()
       htop:toggle()
-    end
-
-    function _G._dev_server_toggle()
-      dev_server:toggle()
     end
 
     function _G._ssm_port_forward_toggle()
@@ -388,8 +397,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = margin,
-            col = margin,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
@@ -408,8 +421,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = margin,
-            col = function() return math.floor((vim.o.columns - terminal_width) / 2) end,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
@@ -428,8 +445,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = margin,
-            col = function() return vim.o.columns - terminal_width - margin end,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
@@ -448,8 +469,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = function() return vim.o.lines - terminal_height - margin - 2 end,
-            col = margin,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
@@ -468,8 +493,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = function() return vim.o.lines - terminal_height - margin - 2 end,
-            col = function() return math.floor((vim.o.columns - terminal_width) / 2) end,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
@@ -488,8 +517,12 @@ return {
             border = "rounded",
             width = terminal_width,
             height = terminal_height,
-            row = function() return vim.o.lines - terminal_height - margin - 2 end,
-            col = function() return vim.o.columns - terminal_width - margin end,
+            row = function()
+              return math.floor((vim.o.lines - terminal_height) / 2)
+            end,
+            col = function()
+              return math.floor((vim.o.columns - terminal_width) / 2)
+            end,
             winblend = 10,
           },
           on_open = setup_terminal_keymaps,
