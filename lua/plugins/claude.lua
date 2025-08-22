@@ -145,7 +145,7 @@ return {
       end,
     })
 
-    -- ClaudeCodeターミナルのフォーカス時に自動でinsertモードに入る
+    -- ClaudeCodeターミナルのフォーカス時に自動でinsertモードに入り、IMEを英数に切り替え
     vim.api.nvim_create_autocmd("WinEnter", {
       callback = function()
         local win = vim.api.nvim_get_current_win()
@@ -154,8 +154,10 @@ return {
           local bufname = vim.api.nvim_buf_get_name(buf)
           local buftype = vim.api.nvim_buf_get_option(buf, "buftype")
 
-          -- ターミナルバッファかつClaudeCodeのバッファの場合、insertモードに入る
+          -- ターミナルバッファかつClaudeCodeのバッファの場合、insertモードに入り、IMEを英数に切り替え
           if buftype == "terminal" and (bufname:match("claude") or bufname:match("ClaudeCode")) then
+            -- IMEを英数に切り替え（macism使用）
+            vim.fn.system("macism com.apple.keylayout.ABC")
             -- ターミナルモードに入る（ターミナルでは自動的にinsertモード相当になる）
             vim.cmd("startinsert")
           end
