@@ -7,8 +7,8 @@ return {
   "RRethy/vim-illuminate",
   event = { "BufReadPost", "BufNewFile" },
   keys = {
-    { "<C-n>", "<cmd>lua require('illuminate').goto_next_reference(false)<cr>", desc = "次の参照へ移動" },
-    { "<C-N>", "<cmd>lua require('illuminate').goto_prev_reference(false)<cr>", desc = "前の参照へ移動" },
+    { "<C-n>", "<cmd>lua require('illuminate').goto_next_reference(false)<cr>", desc = "次の参照へ移動", mode = { "n", "x", "o" } },
+    { "<C-N>", "<cmd>lua require('illuminate').goto_prev_reference(false)<cr>", desc = "前の参照へ移動", mode = { "n", "x", "o" } },
     { "<leader>ur", "<cmd>lua require('illuminate').toggle()<cr>", desc = "参照ハイライト切り替え" },
   },
   opts = function(_, opts)
