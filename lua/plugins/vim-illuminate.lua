@@ -1,16 +1,11 @@
 --[[
 機能概要: カーソル下の単語と同じ単語を自動的にハイライト表示
 設定内容: LSP・Tree-sitter・正規表現を使った参照ハイライト
-キーバインド: <A-n>次の参照, <A-p>前の参照, <A-i>テキストオブジェクト選択
+キーバインド: なし（ハイライトのみ）
 --]]
 return {
   "RRethy/vim-illuminate",
   event = { "BufReadPost", "BufNewFile" },
-  keys = {
-    { "<C-n>", "<cmd>lua require('illuminate').goto_next_reference(false)<cr>", desc = "次の参照へ移動", mode = { "n", "x", "o" } },
-    { "<C-N>", "<cmd>lua require('illuminate').goto_prev_reference(false)<cr>", desc = "前の参照へ移動", mode = { "n", "x", "o" } },
-    { "<leader>ur", "<cmd>lua require('illuminate').toggle()<cr>", desc = "参照ハイライト切り替え" },
-  },
   opts = function(_, opts)
     -- デバッグ（実装時のみ、完了時削除）
     -- print("=== DEBUG: vim-illuminate Initial opts ===")
@@ -56,14 +51,5 @@ return {
   end,
   config = function(_, opts)
     require("illuminate").configure(opts)
-    
-    -- 既存のキーマップを強制的に上書き
-    vim.keymap.set('n', '<C-n>', function()
-      require('illuminate').goto_next_reference(false)
-    end, { desc = '次の参照へ移動' })
-    
-    vim.keymap.set('n', '<C-N>', function()
-      require('illuminate').goto_prev_reference(false)
-    end, { desc = '前の参照へ移動' })
   end,
 }
