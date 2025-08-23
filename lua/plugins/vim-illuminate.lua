@@ -56,5 +56,14 @@ return {
   end,
   config = function(_, opts)
     require("illuminate").configure(opts)
+    
+    -- 既存のキーマップを強制的に上書き
+    vim.keymap.set('n', '<C-n>', function()
+      require('illuminate').goto_next_reference(false)
+    end, { desc = '次の参照へ移動' })
+    
+    vim.keymap.set('n', '<C-N>', function()
+      require('illuminate').goto_prev_reference(false)
+    end, { desc = '前の参照へ移動' })
   end,
 }
