@@ -7,13 +7,9 @@ return {
   "RRethy/vim-illuminate",
   event = { "BufReadPost", "BufNewFile" },
   opts = function(_, opts)
-    -- デバッグ（実装時のみ、完了時削除）
-    -- print("=== DEBUG: vim-illuminate Initial opts ===")
-    -- print(vim.inspect(opts))
-    
     -- 安全な初期化
     opts = opts or {}
-    
+
     -- 設定のマージ（完全上書きではない）
     opts = vim.tbl_deep_extend("force", opts, {
       providers = { "lsp", "treesitter", "regex" },
@@ -42,11 +38,6 @@ return {
       providers_regex_syntax_allowlist = {},
       under_cursor = true,
     })
-    
-    -- デバッグ（実装時のみ、完了時削除）
-    -- print("=== DEBUG: vim-illuminate Final opts ===")
-    -- print(vim.inspect(opts))
-    
     return opts
   end,
   config = function(_, opts)
