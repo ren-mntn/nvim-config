@@ -39,10 +39,12 @@ return {
       },
       options = {
         show_source = false,
-        throttle = 20,
+        throttle = 0, -- 挿入モードでの表示を滑らかにするため0に設定
+        enable_on_insert = true, -- 挿入モードでも診断を表示する
         softwrap = 30,
         multiple_diag_under_cursor = false,
-        multilines = false,
+        multilines = true, -- 1行に複数の診断がある場合に複数行で表示する
+        show_all_diags_on_cursorline = true, -- 現在行のすべての診断を常時表示
         overflow = {
           mode = "wrap",
         },
@@ -81,11 +83,11 @@ return {
       return
     end
 
-    -- LazyVimのデフォルト診断virtual_textを無効化
+    -- 標準のvirtual_textは無効化する
     vim.diagnostic.config({
-      virtual_text = false, -- tiny-inline-diagnosticを使用するため無効化
+      virtual_text = false,
     })
 
-    vim.notify("tiny-inline-diagnostic: セットアップ完了", vim.log.levels.INFO)
+    vim.notify("tiny-inline-diagnostic: セットアップ完了. virtual_textが有効です。", vim.log.levels.INFO)
   end,
 }
