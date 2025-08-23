@@ -1,110 +1,63 @@
 --[[
-TypeScript + Prettier ハイブリッド設定
-機能: <leader>; で保存 + 全自動修正
-  - 自動インポート追加: TypeScript LSP
-  - インポート整理: ESLint (source.fixAll.eslint)
-  - フォーマット: Prettier (source.fixAll.prettier)
+機能概要: TypeScript LSP設定 - 最高性能追求 (typescript-tools.nvim)
+設定内容: vtslsから直接tsserver通信による高速化、モノレポ対応
+キーバインド: LSP標準キーマップ
 --]]
-
 return {
-  -- キーマップ設定（標準的なLazyVim方式）
+  -- typescript-tools.nvim：vtslsより高速な直接tsserver通信
   {
-    "LazyVim/LazyVim",
-    keys = {
-      {
-        "<leader>;",
-        function()
-          local bufnr = vim.api.nvim_get_current_buf()
-          local filename = vim.api.nvim_buf_get_name(bufnr)
-          local filetype = vim.bo[bufnr].filetype
+    "pmizio/typescript-tools.nvim",
+    dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
+    ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
+    opts = function()
+      return {
+        -- モノレポ対応：.gitをルートとして検出
+        root_dir = require("lspconfig.util").root_pattern(".git"),
 
-          -- TypeScript/JavaScript関連ファイルのみ処理
-          if not vim.tbl_contains({ "typescript", "typescriptreact", "javascript", "javascriptreact" }, filetype) then
-            -- その他のファイルは単純に保存
-            vim.cmd("write")
-            return
-          end
-
-          -- 1. TypeScript LSPで自動インポート追加とインポート整理
-          vim.schedule(function()
-            -- 自動インポート追加
-            pcall(function()
-              vim.lsp.buf.code_action({
-                context = {
-                  only = { "source.addMissingImports" },
-                  diagnostics = {},
-                },
-                apply = true,
-              })
-            end)
-
-            -- 2. 50ms後にESLintでインポート整理
-            vim.defer_fn(function()
-              -- ESLintでインポート整理
-              pcall(function()
-                vim.lsp.buf.code_action({
-                  context = {
-                    only = { "source.fixAll.eslint" },
-                    diagnostics = {},
-                  },
-                  apply = true,
-                })
-              end)
-
-              -- 3. ESLintの処理完了を待ってからPrettierでフォーマット
-              vim.defer_fn(function()
-                local success, result = pcall(function()
-                  -- conform.nvimでPrettierフォーマットを実行
-                  local conform = require("conform")
-                  if conform then
-                    return conform.format({ bufnr = bufnr, async = false })
-                  else
-                    error("conform.nvim not available")
-                  end
-                end)
-
-                if not success then
-                  vim.notify("Prettier format failed: " .. tostring(result), vim.log.levels.WARN)
-                end
-
-                -- 4. Prettier処理完了を待ってから保存
-                vim.defer_fn(function()
-                  vim.cmd("write")
-                  vim.notify("✅ 完了: インポート整理 + フォーマット + 保存", vim.log.levels.INFO)
-                end, 100)
-              end, 100) -- ESLintの処理完了を待つ
-            end, 50)
-          end)
+        on_attach = function(client, bufnr)
+          -- Prettierでフォーマットするため、LSPフォーマットを無効化
+          client.server_capabilities.documentFormattingProvider = false
+          client.server_capabilities.documentRangeFormattingProvider = false
         end,
-        desc = "全自動修正 + 保存 (ESLint + Prettier)",
-        mode = "n",
-      },
-    },
-  },
 
-  -- conform.nvim設定はLazyVim extrasで自動設定されるため削除
-
-  -- LSP設定
-  {
-    "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        -- TypeScript LSP (vtsls)のフォーマットを無効化
-        vtsls = {
-          settings = {
-            typescript = {
-              format = {
-                enable = false, -- Prettierでフォーマット
-              },
-            },
-            javascript = {
-              format = {
-                enable = false, -- Prettierでフォーマット
-              },
-            },
+        settings = {
+          -- 診断用tsserverを無効化してメモリ消費を削減
+          separate_diagnostic_server = false,
+          -- 診断のタイミング：insert_leave時（パフォーマンス重視）
+          publish_diagnostic_on = "insert_leave",
+          -- コードアクションとしてimport整理機能を公開
+          expose_as_code_action = { "organize_imports", "add_missing_imports", "remove_unused_imports" },
+          -- JSX自動クローズタグ
+          jsx_close_tag = {
+            enable = true,
+            filetypes = { "javascriptreact", "typescriptreact" },
+          },
+          -- tsserver設定
+          tsserver_file_preferences = {
+            includeInlayParameterNameHints = "all",
+            includeCompletionsForModuleExports = true,
+            quotePreference = "auto",
+          },
+          tsserver_format_options = {
+            allowIncompleteCompletions = false,
+            allowRenameOfImportPath = false,
           },
         },
-      },
-    },
+      }
+    end,
+  },
+
+  -- LazyVim TypeScript extra設定を無効化（vtslsと競合回避）
+  {
+    "neovim/nvim-lspconfig",
+    opts = function(_, opts)
+      -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
+      opts.servers = opts.servers or {}
+      opts.servers.vtsls = vim.tbl_deep_extend("force", opts.servers.vtsls or {}, {
+        enabled = false,
+      })
+
+      return opts
+    end,
   },
 }
