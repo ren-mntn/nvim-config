@@ -22,6 +22,10 @@ require("lazy").setup({
     -- { import = "lazyvim.plugins.extras.lang.typescript" }, -- ハイブリッドTypeScript設定と競合するため無効化
     { import = "lazyvim.plugins.extras.lang.python" },
     { import = "lazyvim.plugins.extras.lang.docker" },
+    
+    -- リント・フォーマット（手動トリガー用）
+    { import = "lazyvim.plugins.extras.linting.eslint" },
+    { import = "lazyvim.plugins.extras.formatting.prettier" },
 
     { import = "plugins" },
   },

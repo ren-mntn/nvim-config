@@ -34,10 +34,15 @@ vim.api.nvim_create_autocmd("VimEnter", {
   end,
 })
 
-vim.opt.spell = false -- すべてのファイルでスペルチェックを無効にする
+-- スペルチェック設定
+vim.opt.spell = false -- 標準スペルチェックを無効にする
+-- typos-lspは有効のまま（プログラミング用スペルチェック）
 
 -- 自動フォーマットを無効化（手動でフォーマットする方が安全）
 vim.g.autoformat = false
+
+-- Prettier設定ファイルを必須にしない（設定ファイルがなくてもPrettierを実行）
+vim.g.lazyvim_prettier_needs_config = false
 
 -- swapファイル関連の設定
 vim.opt.swapfile = false -- swapファイルを無効化（推奨）
