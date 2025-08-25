@@ -38,7 +38,7 @@ return {
         factor = 0.27,
       },
       options = {
-        show_source = false,
+        show_source = true, -- エラー発生元を表示（LSPサーバー名など）
         throttle = 0, -- 挿入モードでの表示を滑らかにするため0に設定
         enable_on_insert = true, -- 挿入モードでも診断を表示する
         softwrap = 30,
