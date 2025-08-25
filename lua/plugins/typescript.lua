@@ -21,10 +21,10 @@ return {
         end,
 
         settings = {
-          -- 診断用tsserverを無効化してメモリ消費を削減
-          separate_diagnostic_server = false,
-          -- 診断のタイミング：insert_leave時（パフォーマンス重視）
-          publish_diagnostic_on = "insert_leave",
+          -- 診断用tsserverを有効化して診断表示を改善
+          separate_diagnostic_server = true,
+          -- 診断のタイミング：変更時（リアルタイム診断）
+          publish_diagnostic_on = "change",
           -- コードアクションとしてimport整理機能を公開
           expose_as_code_action = { "organize_imports", "add_missing_imports", "remove_unused_imports" },
           -- JSX自動クローズタグ
@@ -34,7 +34,7 @@ return {
           },
           -- tsserver設定
           tsserver_file_preferences = {
-            includeInlayParameterNameHints = "all",
+            includeInlayParameterNameHints = "literals",
             includeCompletionsForModuleExports = true,
             quotePreference = "auto",
           },
@@ -48,16 +48,12 @@ return {
   },
 
   -- LazyVim TypeScript extra設定を無効化（vtslsと競合回避）
-  {
-    "neovim/nvim-lspconfig",
-    opts = function(_, opts)
-      -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
-      opts.servers = opts.servers or {}
-      opts.servers.vtsls = vim.tbl_deep_extend("force", opts.servers.vtsls or {}, {
-        enabled = false,
-      })
-
-      return opts
-    end,
-  },
+  -- {
+  --   "neovim/nvim-lspconfig",
+  --   opts = function(_, opts)
+  --     -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
+  --     opts.servers = opts.servers or {}
+  --     return opts
+  --   end,
+  -- },
 }
