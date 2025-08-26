@@ -218,10 +218,10 @@ function M.setup(opts)
   if opts.keys ~= false then
     local mappings = opts.keys
       or {
-        current_dir = "<leader>ch", -- 現在ディレクトリ（直近）
-        current_dir_all = "<leader>cH", -- 現在ディレクトリ（全件）
-        all = "<leader>ca", -- 全体（直近）
-        all_all = "<leader>cA", -- 全体（全件）
+        current_dir = "<leader>jr", -- 現在ディレクトリ（直近）
+        current_dir_all = "<leader>jR", -- 現在ディレクトリ（全件）
+        all = "<leader>j/", -- 全体（直近）
+        all_all = "<leader>j?", -- 全体（全件）
       }
 
     vim.keymap.set("n", mappings.current_dir, M.show_current_dir_conversations, {
