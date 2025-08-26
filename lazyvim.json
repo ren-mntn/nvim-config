@@ -1,10 +1,7 @@
 {
   "extras": [
     "lazyvim.plugins.extras.ai.copilot",
-    "lazyvim.plugins.extras.formatting.biome",
-    "lazyvim.plugins.extras.lang.tailwind",
-    "lazyvim.plugins.extras.lang.typescript",
-    "lazyvim.plugins.extras.vscode"
+    "lazyvim.plugins.extras.formatting.biome"
   ],
   "install_version": 8,
   "news": {
