@@ -60,9 +60,35 @@ os:
   editCommand: "nvim"
   editCommandTemplate: "{{editor}} {{filename}}"
   openCommand: "open {{filename}}"
+  # クリップボード設定（macOS用）
+  copyToClipboardCmd: 'printf "%s" "{{text}}" | pbcopy'
+  readFromClipboardCmd: 'pbpaste'
 
 refresher:
   refreshInterval: 10
   fetchInterval: 60
 
 confirmOnQuit: false
+
+# カスタムコマンド
+customCommands:
+  # 最後のgitエラーをクリップボードに直接コピー
+  - key: 'E'
+    context: 'global'
+    description: 'Gitエラーをクリップボードにコピー'
+    command: 'git status 2>&1 | pbcopy && echo "Git status copied to clipboard"'
+    output: 'log'
+  
+  # コミット試行のフルログをクリップボードにコピー
+  - key: 'C'
+    context: 'commits'
+    description: 'コミットエラーをクリップボードにコピー'  
+    command: 'git commit --dry-run 2>&1 | pbcopy && echo "Commit error copied to clipboard"'
+    output: 'log'
+    
+  # 最後のgitコマンドの詳細をファイル保存＋エディタで開く
+  - key: 'D'
+    context: 'global'
+    description: 'Gitエラーをエディタで開く'
+    command: 'git status; git log --oneline -5; echo "=== $(date) ===" > /tmp/git-debug.txt && git status >> /tmp/git-debug.txt 2>&1 && open /tmp/git-debug.txt'
+    output: 'terminal'
