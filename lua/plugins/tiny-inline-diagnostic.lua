@@ -8,10 +8,6 @@ return {
   event = "VeryLazy",
   priority = 1000, -- 他の診断設定より前に読み込み
   opts = function(_, opts)
-    -- デバッグ（実装時のみ、完了時削除）
-    -- print("=== DEBUG: tiny-inline-diagnostic opts ===")
-    -- print(vim.inspect(opts))
-
     -- 安全な初期化
     opts = opts or {}
 
@@ -59,10 +55,6 @@ return {
     -- 設定のマージ
     opts = vim.tbl_deep_extend("force", opts, config)
 
-    -- デバッグ（実装時のみ、完了時削除）
-    -- print("=== DEBUG: Final tiny-inline-diagnostic opts ===")
-    -- print(vim.inspect(opts))
-
     return opts
   end,
   config = function(_, opts)
@@ -88,6 +80,5 @@ return {
       virtual_text = false,
     })
 
-    vim.notify("tiny-inline-diagnostic: セットアップ完了. virtual_textが有効です。", vim.log.levels.INFO)
   end,
 }
