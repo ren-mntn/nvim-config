@@ -127,3 +127,9 @@ vim.keymap.set("n", "<S-k>", "10k", { desc = "Very fast up (10 lines)" })
 -- ページ移動の代替
 vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Half page down + center" })
 vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up + center" })
+
+-- カスタムモーション：「`」を「0」と同等にする
+vim.keymap.set({"n", "v", "o"}, "`", "0", { desc = "Move to start of line (custom)" })
+
+-- LSP Code Action
+vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })
