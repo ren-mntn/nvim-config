@@ -11,8 +11,8 @@ return {
     ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
     opts = function()
       return {
-        -- モノレポ対応：.gitをルートとして検出
-        root_dir = require("lspconfig.util").root_pattern(".git"),
+        -- モノレポ対応：各プロジェクトディレクトリをルートとして検出
+        root_dir = require("lspconfig.util").root_pattern("tsconfig.json", "package.json", ".git"),
 
         on_attach = function(client, bufnr)
           -- Prettierでフォーマットするため、LSPフォーマットを無効化
@@ -25,8 +25,13 @@ return {
           separate_diagnostic_server = true,
           -- 診断のタイミング：変更時（リアルタイム診断）
           publish_diagnostic_on = "change",
-          -- コードアクションとしてimport整理機能を公開
-          expose_as_code_action = { "organize_imports", "add_missing_imports", "remove_unused_imports" },
+          -- コードアクションとしてimport整理機能とクイックフィックスを公開
+          expose_as_code_action = { 
+            "organize_imports", 
+            "add_missing_imports", 
+            "remove_unused_imports",
+            "fix_all"
+          },
           -- JSX自動クローズタグ
           jsx_close_tag = {
             enable = true,
@@ -37,6 +42,10 @@ return {
             includeInlayParameterNameHints = "literals",
             includeCompletionsForModuleExports = true,
             quotePreference = "auto",
+            -- React Hooks関連の詳細エラー表示を有効化
+            includeInlayEnumMemberValueHints = true,
+            includeInlayFunctionLikeReturnTypeHints = true,
+            includeInlayVariableTypeHints = false,
           },
           tsserver_format_options = {
             allowIncompleteCompletions = false,
@@ -48,12 +57,14 @@ return {
   },
 
   -- LazyVim TypeScript extra設定を無効化（vtslsと競合回避）
-  -- {
-  --   "neovim/nvim-lspconfig",
-  --   opts = function(_, opts)
-  --     -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
-  --     opts.servers = opts.servers or {}
-  --     return opts
-  --   end,
-  -- },
+  {
+    "neovim/nvim-lspconfig",
+    opts = function(_, opts)
+      -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
+      opts.servers = opts.servers or {}
+      opts.servers.vtsls = false
+      opts.servers.tsserver = false
+      return opts
+    end,
+  },
 }
