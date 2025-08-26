@@ -7,6 +7,7 @@ return {
   "DNLHC/glance.nvim",
   event = "VeryLazy",
   keys = {
+    { "gd", vim.lsp.buf.definition, desc = "定義に移動" },
     { "gD", "<cmd>Glance definitions<cr>", desc = "定義を表示" },
     { "gR", "<cmd>Glance references<cr>", desc = "参照を表示" },
     { "gY", "<cmd>Glance type_definitions<cr>", desc = "型定義を表示" },
