@@ -7,12 +7,11 @@ return {
   "supermaven-inc/supermaven-nvim",
   event = "VeryLazy",
   opts = function(_, opts)
-    -- デバッグ（実装時のみ、完了時削除）
-    print("=== DEBUG: Supermaven initial opts ===")
-    print(vim.inspect(opts))
-    
-    -- 基本設定のマージ
-    opts = vim.tbl_deep_extend("force", opts or {}, {
+    -- 安全な初期化
+    opts = opts or {}
+
+    -- 設定のマージ（完全上書きではない）
+    opts = vim.tbl_deep_extend("force", opts, {
       keymaps = {
         accept_suggestion = "<Tab>",
         clear_suggestion = "<C-]>",
@@ -27,11 +26,7 @@ return {
       disable_inline_completion = false,
       disable_keymaps = false,
     })
-    
-    -- デバッグ（実装時のみ、完了時削除）
-    print("=== DEBUG: Supermaven final opts ===")
-    print(vim.inspect(opts))
-    
+
     return opts
   end,
 }
