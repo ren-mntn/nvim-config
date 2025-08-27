@@ -2,7 +2,8 @@
 --
 -- 機能概要:
 -- 1. モード切り替え時の自動IME制御 (InsertLeave/CmdlineLeave時に英数切替)
--- 2. 全角スペース「　」誤入力時の自動処理
+-- 2. neo-tree、Buffer等のフォーカス時に英数切替
+-- 3. 全角スペース「　」誤入力時の自動処理
 --    - ノーマルモード: 全角スペース → IME英数切替 + Leaderキーメニュー表示
 --    - Insertモード: 全角スペース → Escape + IME英数切替 + Leaderキーメニュー表示
 --    - コマンドモード: 全角スペース → キャンセル + IME英数切替 + Leaderキーメニュー表示
@@ -69,16 +70,78 @@ return {
       desc = "全角スペース→コマンドキャンセル + IME切り替え + Leader",
     },
   },
-  opts = {
-    -- macOSでmacismを使用（既存環境で確認済み）
-    default_im_select = "com.apple.keylayout.ABC",
-    default_command = "macism", -- macOS用コマンド
-    -- InsertLeaveでIMEオフ、CmdlineLeaveでもIMEオフ
-    set_default_events = { "InsertLeave", "CmdlineLeave" },
-    -- InsertEnterで以前のIME状態を復元しない（常に英数で開始）
-    set_previous_events = {},
-    -- 非同期切り替えでパフォーマンス向上
-    async_switch_im = true,
-    keep_quiet_on_no_binary = false,
-  },
+  opts = function(_, opts)
+    -- デバッグ（実装時のみ、完了時削除）
+    -- print("=== DEBUG: Initial ime-control opts ===")
+    -- print(vim.inspect(opts))
+
+    -- 安全な初期化
+    opts = opts or {}
+
+    -- 設定のマージ（完全上書きではない）
+    opts = vim.tbl_deep_extend("force", opts, {
+      -- macOSでmacismを使用（既存環境で確認済み）
+      default_im_select = "com.apple.keylayout.ABC",
+      default_command = "macism", -- macOS用コマンド
+      -- InsertLeaveでIMEオフ、CmdlineLeaveでもIMEオフ
+      set_default_events = { "InsertLeave", "CmdlineLeave" },
+      -- InsertEnterで以前のIME状態を復元しない（常に英数で開始）
+      set_previous_events = {},
+      -- 非同期切り替えでパフォーマンス向上
+      async_switch_im = true,
+      keep_quiet_on_no_binary = false,
+    })
+
+    return opts
+  end,
+  config = function(_, opts)
+    -- im-select.nvimの初期化
+    require("im_select").setup(opts)
+
+    -- macismが利用可能かチェック
+    local function has_macism()
+      return vim.fn.executable("macism") == 1
+    end
+
+    -- 英数入力に切り替える関数
+    local function switch_to_abc()
+      if has_macism() then
+        -- pcallでエラーハンドリング
+        local success, error = pcall(function()
+          vim.fn.system("macism com.apple.keylayout.ABC")
+        end)
+
+        if not success then
+          vim.notify("macism error: " .. tostring(error), vim.log.levels.WARN)
+        end
+      end
+    end
+
+    -- neo-tree、Buffer等のフォーカス時にIMEを英数に切り替え
+    vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
+      group = vim.api.nvim_create_augroup("IMEControlBufferFocus", { clear = true }),
+      pattern = "*",
+      callback = function()
+        local buftype = vim.bo.buftype
+        local filetype = vim.bo.filetype
+
+        -- 特殊バッファ（neo-tree、help、qf、terminal等）で英数切替
+        if
+          buftype == "help"
+          or buftype == "quickfix"
+          or buftype == "terminal"
+          or buftype == "nofile"
+          or filetype == "neo-tree"
+          or filetype == "help"
+          or filetype == "qf"
+          or filetype == "telescope"
+        then
+          switch_to_abc()
+        -- 通常のファイルバッファ（buftype=""）でも英数切替
+        elseif buftype == "" then
+          switch_to_abc()
+        end
+      end,
+    })
+  end,
 }
