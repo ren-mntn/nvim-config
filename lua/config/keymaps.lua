@@ -115,10 +115,9 @@ vim.keymap.set("n", "<leader>gu", function()
 end, { desc = "Undo Last Commit" })
 
 -- 高速移動用キーマップ（Keyball向け）
-vim.keymap.set("n", "<C-j>", "5j", { desc = "Fast down (5 lines)" })
-vim.keymap.set("n", "<C-k>", "5k", { desc = "Fast up (5 lines)" })
-vim.keymap.set("n", "<C-h>", "5h", { desc = "Fast left (5 chars)" })
-vim.keymap.set("n", "<C-l>", "5l", { desc = "Fast right (5 chars)" })
+-- 注意: mはマーク機能、,はリピートジャンプ逆方向を上書き
+vim.keymap.set("n", "m", "5j", { desc = "Fast down (5 lines)" })
+vim.keymap.set("n", ",", "5k", { desc = "Fast up (5 lines)" })
 
 -- さらに高速移動
 vim.keymap.set("n", "<S-j>", "10j", { desc = "Very fast down (10 lines)" })
@@ -129,7 +128,7 @@ vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Half page down + center" })
 vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up + center" })
 
 -- カスタムモーション：「`」を「0」と同等にする
-vim.keymap.set({"n", "v", "o"}, "`", "0", { desc = "Move to start of line (custom)" })
+vim.keymap.set({ "n", "v", "o" }, "`", "0", { desc = "Move to start of line (custom)" })
 
 -- LSP Code Action
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })

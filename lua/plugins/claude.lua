@@ -14,6 +14,32 @@ return {
     -- Claude AI統一キーマップ - <leader>j系統
     { "<leader>j", group = "Claude AI", desc = "Claude AI Tools" },
 
+    -- ========== 直接アクセス（競合しないキー） ==========
+    {
+      "<C-g>",
+      function()
+        -- neo-treeにフォーカスがある場合は無効化
+        local filetype = vim.bo.filetype
+        if filetype == "neo-tree" then
+          return
+        end
+
+        -- 現在のバッファがClaudeCodeターミナルかチェック
+        local bufname = vim.api.nvim_buf_get_name(0)
+        local buftype = vim.api.nvim_get_option_value("buftype", { buf = 0 })
+
+        -- ターミナルバッファかつClaudeCode関連の場合はウィンドウを閉じる
+        if buftype == "terminal" and (bufname:match("claude") or bufname:match("ClaudeCode")) then
+          vim.cmd("close")
+        else
+          -- そうでなければClaudeCodeを開く
+          vim.cmd("ClaudeCode")
+        end
+      end,
+      desc = "Toggle Claude Chat",
+    },
+    { "<C-q>", "<cmd>ClaudeCodeAdd %<CR>", desc = "Add Current File to Claude" },
+
     -- ========== Claude ターミナル・チャット ==========
     { "<leader>jj", "<cmd>ClaudeCode<CR>", desc = "Chat" },
 

@@ -73,7 +73,7 @@ return {
     opts.window = vim.tbl_deep_extend("force", opts.window, {
       mappings = {
         -- ClaudeにファイルまたはディレクトリをContext追加
-        ["<C-a>"] = {
+        ["<C-q>"] = {
           function(state)
             local node = state.tree:get_node()
             if node then
@@ -94,35 +94,17 @@ return {
           end,
           desc = "Add to Claude (recursive for dirs)",
         },
-        -- 複数選択したファイルをClaudeに追加（スペースで選択後）
-        ["<C-A>"] = {
+        -- 複数選択したファイルをClaudeに追加（視覚的選択をサポート）
+        ["<C-Q>"] = {
           function(state)
-            local selected_nodes = state.tree:get_checked_nodes()
-            local added_count = 0
-
-            -- 選択されたノードがある場合
-            if selected_nodes and #selected_nodes > 0 then
-              for _, node in ipairs(selected_nodes) do
-                local path = vim.fn.fnameescape(node:get_id())
-                vim.cmd("ClaudeCodeAdd " .. path)
-                added_count = added_count + 1
-              end
-            else
-              -- 選択がない場合は現在のノードを追加
-              local node = state.tree:get_node()
-              if node then
-                local path = vim.fn.fnameescape(node:get_id())
-                vim.cmd("ClaudeCodeAdd " .. path)
-                added_count = 1
-              end
-            end
-
-            -- フィードバック
-            if added_count > 0 then
-              vim.notify(string.format("Added %d item(s) to Claude context", added_count))
+            local node = state.tree:get_node()
+            if node then
+              local path = vim.fn.fnameescape(node:get_id())
+              vim.cmd("ClaudeCodeAdd " .. path)
+              vim.notify("Added " .. node.name .. " to Claude context")
             end
           end,
-          desc = "Add selected items to Claude",
+          desc = "Add current item to Claude (alternative)",
         },
       },
     })
