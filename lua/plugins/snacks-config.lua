@@ -17,6 +17,14 @@ return {
     -- "vertical"  - 縦長レイアウト
     -- "select"    - 選択用小レイアウト
 
+    -- ファイル表示形式の設定（フルパス表示）
+    opts.picker.formatters = vim.tbl_deep_extend("force", opts.picker.formatters or {}, {
+      file = {
+        filename_only = false, -- フルパス表示（階層を省略しない）
+        truncate = 200, -- パス省略を大幅に緩和（デフォルト40→200）
+      },
+    })
+
     -- 人気設定：頻度追跡（Frecency）
     opts.picker.matcher = vim.tbl_deep_extend("force", opts.picker.matcher or {}, {
       frecency = true, -- 頻度ベース検索
