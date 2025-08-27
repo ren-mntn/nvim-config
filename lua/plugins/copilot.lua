@@ -17,7 +17,7 @@ return {
 
     -- blink.cmpとの統合のため提案機能を無効化
     opts.suggestion = vim.tbl_deep_extend("force", opts.suggestion or {}, {
-      enabled = false,
+      auto_trigger = true,
     })
 
     -- ファイルタイプ設定
