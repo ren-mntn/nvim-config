@@ -96,6 +96,7 @@ return {
 - [ ] **Styluaフォーマット実行**: `stylua lua/plugins/[modified-file].lua`
 - [ ] 実装パターンの最終確認
 - [ ] パフォーマンステスト: `nvim --startuptime /tmp/startup.log +qall`
+- [ ] **ショートカットキーの更新**: 新規・変更したキーマップは`SHORTCUTS.md`に記載
 </workflow>
 
 ## 🔧 コード品質管理
@@ -140,6 +141,7 @@ return {
 - [ ] デバッグコード削除済み
 - [ ] **Styluaフォーマット適用済み**: `stylua lua/plugins/[file].lua`
 - [ ] 動作確認: `nvim --headless -c "lua print('OK')" -c "qall"`
+- [ ] **ショートカットキー記載済み**: 新規・変更したキーマップは`SHORTCUTS.md`に記載済み
 </checklist>
 
 ## 🏗️ アーキテクチャ概要
@@ -151,6 +153,7 @@ return {
   - `init.lua`: エントリポイント
   - `lua/config/`: コア設定
   - `lua/plugins/`: プラグイン設定（ここを主に編集）
+  - `SHORTCUTS.md`: ショートカットキー一覧（修飾キー使用のもののみ）
 - **言語**: 日本語対応（`helplang = { "ja", "en" }`）
 </architecture>
 
