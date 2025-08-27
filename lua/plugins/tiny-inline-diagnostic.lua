@@ -1,7 +1,7 @@
 --[[
 機能概要: インライン診断メッセージの美しい表示
 設定内容: LazyVim標準の診断をtiny-inline-diagnosticで置き換え
-キーバインド: なし（診断表示の自動化）
+キーバインド: <leader>dC - カーソル位置の診断エラーをクリップボードにコピー
 --]]
 return {
   "rachartier/tiny-inline-diagnostic.nvim",
@@ -79,6 +79,33 @@ return {
     vim.diagnostic.config({
       virtual_text = false,
     })
-
   end,
+  keys = {
+    {
+      "<leader>dC",
+      function()
+        local tiny_inline_diagnostic = require("tiny-inline-diagnostic")
+        local diagnostic = tiny_inline_diagnostic.get_diagnostic_under_cursor()
+
+        if diagnostic and #diagnostic > 0 then
+          local messages = {}
+          for _, diag in ipairs(diagnostic) do
+            local source = diag.source and ("[" .. diag.source .. "] ") or ""
+            local severity = vim.diagnostic.severity[diag.severity] or "UNKNOWN"
+            table.insert(messages, severity .. ": " .. source .. diag.message)
+          end
+
+          local text = table.concat(messages, "\n")
+          vim.fn.setreg("+", text)
+          vim.notify(
+            "診断メッセージをクリップボードにコピーしました (" .. #diagnostic .. "件)",
+            vim.log.levels.INFO
+          )
+        else
+          vim.notify("カーソル位置に診断メッセージがありません", vim.log.levels.WARN)
+        end
+      end,
+      desc = "診断エラーをクリップボードにコピー",
+    },
+  },
 }
