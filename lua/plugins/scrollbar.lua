@@ -24,6 +24,13 @@ return {
 
     if pcall(require, "gitsigns") then
       require("scrollbar.handlers.gitsigns").setup()
+
+      -- gitsignsの色を明示的に設定して視認性を改善
+      vim.cmd([[
+        highlight ScrollbarGitAdd guifg=#A3BE8C guibg=NONE
+        highlight ScrollbarGitChange guifg=#EBCB8B guibg=NONE  
+        highlight ScrollbarGitDelete guifg=#BF616A guibg=NONE
+      ]])
     end
   end,
 }
