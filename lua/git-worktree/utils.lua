@@ -85,6 +85,85 @@ function M.safe_copy_directory(src, dst)
   return false
 end
 
+function M.create_symlink(source_path, target_path)
+  -- 既存のnode_modulesを削除
+  if vim.fn.isdirectory(target_path) == 1 then
+    vim.fn.system(string.format("rm -rf %s", vim.fn.shellescape(target_path)))
+  end
+
+  -- シンボリックリンクを作成
+  local symlink_result =
+    vim.fn.system(string.format("ln -s %s %s", vim.fn.shellescape(source_path), vim.fn.shellescape(target_path)))
+
+  return vim.v.shell_error == 0, symlink_result
+end
+
+function M.find_package_json_dirs(base_path)
+  local package_dirs = {}
+
+  -- package.jsonがあるディレクトリを検索（node_modules除く）
+  local find_cmd =
+    string.format("find %s -name 'package.json' -not -path '*/node_modules/*' -type f", vim.fn.shellescape(base_path))
+  local result = vim.fn.system(find_cmd)
+
+  for line in result:gmatch("[^\n]+") do
+    local dir = vim.fn.fnamemodify(line, ":h")
+    table.insert(package_dirs, dir)
+  end
+
+  return package_dirs
+end
+
+function M.setup_node_modules_symlink(worktree_path, git_root)
+  local config = require("git-worktree.config")
+
+  if not config.config.share_node_modules then
+    return false
+  end
+
+  local success_count = 0
+  local package_dirs = M.find_package_json_dirs(worktree_path)
+
+  for _, pkg_dir in ipairs(package_dirs) do
+    -- 対応するmainディレクトリのnode_modulesパスを構築
+    local relative_path = pkg_dir:sub(#worktree_path + 2) -- worktree_pathからの相対パス
+    local main_pkg_dir = git_root .. "/" .. relative_path
+    local main_node_modules = main_pkg_dir .. "/node_modules"
+    local worktree_node_modules = pkg_dir .. "/node_modules"
+
+    -- mainのnode_modulesが存在する場合のみシンボリックリンクを作成
+    if vim.fn.isdirectory(main_node_modules) == 1 then
+      local success, error_msg = M.create_symlink(main_node_modules, worktree_node_modules)
+
+      if success then
+        success_count = success_count + 1
+        local short_path = relative_path == "" and "root" or relative_path
+        vim.notify(
+          string.format(
+            "✅ node_modules symlink created: %s (%s)",
+            vim.fn.fnamemodify(worktree_path, ":t"),
+            short_path
+          ),
+          vim.log.levels.INFO
+        )
+      else
+        local short_path = relative_path == "" and "root" or relative_path
+        vim.notify(
+          string.format(
+            "⚠️ Failed to create node_modules symlink: %s (%s) - %s",
+            vim.fn.fnamemodify(worktree_path, ":t"),
+            short_path,
+            error_msg:gsub("\n", " ")
+          ),
+          vim.log.levels.WARN
+        )
+      end
+    end
+  end
+
+  return success_count > 0
+end
+
 function M.install_dependencies_async(worktree_path, callback)
   local config = require("git-worktree.config")
 
@@ -92,6 +171,16 @@ function M.install_dependencies_async(worktree_path, callback)
     if callback then
       callback(true)
     end
+    return
+  end
+
+  -- node_modulesシンボリックリンク設定を試行
+  local git_root = require("git-worktree.config").get_git_root()
+  local symlink_created = M.setup_node_modules_symlink(worktree_path, git_root)
+
+  -- シンボリックリンクが作成された場合は依存関係のインストールをスキップ
+  if symlink_created then
+    M.run_prisma_generate_if_needed(worktree_path, callback)
     return
   end
 

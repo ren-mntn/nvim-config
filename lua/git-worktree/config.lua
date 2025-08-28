@@ -13,6 +13,7 @@ M.DEFAULT_CONFIG = {
   project_dirs = { ".vscode", ".cursor" },
   project_files = { ".npmrc" },
   global_gitignore_path = vim.fn.expand("~/.gitignore_global"),
+  share_node_modules = true, -- mainのnode_modulesをシンボリックリンクで共有
 }
 
 M.config = {}
