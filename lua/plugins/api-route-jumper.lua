@@ -1,13 +1,12 @@
 --[[
 機能概要: API Route Jumper - apiClient()呼び出しから対応するサーバーファイルへジャンプ
-設定内容: API呼び出し検出、仮想テキスト表示、Telescope統合、ジャンプ機能
+設定内容: API呼び出し検出、仮想テキスト表示、vim.ui.select統合、ジャンプ機能
 キーバインド: ga (API Jump), <leader>as (API Search)
 --]]
 return {
-  "nvim-telescope/telescope.nvim",
+  "nvim-treesitter/nvim-treesitter",
   dependencies = {
     "nvim-lua/plenary.nvim",
-    "nvim-treesitter/nvim-treesitter",
   },
   keys = {
     {
@@ -360,7 +359,7 @@ return {
         local display = string.format("%d:%d → %s", call.line, call.col, call.path)
         table.insert(items, {
           display = display,
-          call = call
+          call = call,
         })
       end
 
