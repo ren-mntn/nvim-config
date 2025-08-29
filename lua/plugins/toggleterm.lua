@@ -89,6 +89,7 @@ return {
         vim.cmd("startinsert!")
         vim.keymap.set("t", "<C-q>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr })
         vim.keymap.set("t", "<Esc>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr })
+        vim.keymap.set("n", "<Esc>", "<cmd>close<CR>", { silent = true, buffer = term.bufnr })
       end,
       on_exit = function(term)
         vim.cmd("checktime")
@@ -115,6 +116,11 @@ return {
 
       vim.keymap.set("t", "<Esc>", function()
         term:toggle() -- 常に隠すだけ
+      end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
+
+      -- ノーマルモードでもEscで閉じる
+      vim.keymap.set("n", "<Esc>", function()
+        term:toggle()
       end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
 
       -- サイズ変更キーマップ
@@ -208,8 +214,8 @@ return {
     end
 
     -- 6つの位置別フロートターミナル
-    local terminal_width = 80
-    local terminal_height = 20
+    local terminal_width = 160
+    local terminal_height = 40
     local margin = 5
 
     -- 中央配置ターミナル1
@@ -358,6 +364,9 @@ return {
           end
         end, { silent = true, buffer = term.bufnr, desc = "Close terminal completely" })
         vim.keymap.set("t", "<Esc>", function()
+          term:toggle()
+        end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
+        vim.keymap.set("n", "<Esc>", function()
           term:toggle()
         end, { silent = true, buffer = term.bufnr, desc = "Hide terminal" })
       end,
