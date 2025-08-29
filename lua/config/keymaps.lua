@@ -5,12 +5,10 @@ vim.keymap.set("n", "<Leader>e", "<cmd>Neotree toggle<cr>", { desc = "Toggle Neo
 vim.keymap.set("n", "<C-S-e>", "<cmd>Neotree toggle<cr>", { desc = "Toggle Neo-tree (Ctrl+Shift+E)" })
 
 -- ファイル保存と終了
-vim.keymap.set({"n", "i", "v"}, "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
+vim.keymap.set({ "n", "i", "v" }, "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
 vim.keymap.set("n", "<leader>q", "<cmd>q<CR>", { desc = "Quit" })
 vim.keymap.set("n", "<leader>Q", "<cmd>qa<CR>", { desc = "Quit all" })
 vim.keymap.set("n", "<leader>x", "<cmd>x<CR>", { desc = "Save and quit" })
-
-
 
 -- Cmd+Shift+F (iTerm2から<F16>として送信) を <leader>/ にマッピングする
 vim.keymap.set("n", "<F16>", "<leader>/", { remap = true, desc = "Live Grep (Cmd+Shift+F)" })
@@ -31,33 +29,35 @@ vim.keymap.set("n", "<leader>gC", function()
     vim.notify("No staged changes to commit", vim.log.levels.WARN)
     return
   end
-  
+
   -- Conventional Commitsのタイプ選択
   local commit_types = {
     "🎉 init: プロジェクト初期化",
-    "✨ feat: 新規機能追加", 
+    "✨ feat: 新規機能追加",
     "🐞 fix: バグ修正",
     "📃 docs: ドキュメントのみの変更",
     "🦄 refactor: リファクタリング（新規機能やバグ修正を含まない）",
     "🧪 test: 不足テストの追加や既存テストの修正",
   }
-  
+
   vim.ui.select(commit_types, {
     prompt = "コミットタイプの選択:",
     format_item = function(item)
       return item
     end,
   }, function(choice)
-    if not choice then return end
-    
+    if not choice then
+      return
+    end
+
     -- 絵文字とタイプを抽出（例: "✨" and "feat" from "✨ feat: 新規機能追加"）
     local emoji = choice:match("^([^%s]+)")
     local commit_type = choice:match("%s+([^:]+):")
-    
+
     -- メッセージを入力
-    vim.ui.input({ 
+    vim.ui.input({
       prompt = emoji .. " " .. commit_type .. ": ",
-      default = ""
+      default = "",
     }, function(msg)
       if msg and msg ~= "" then
         local full_msg = emoji .. " " .. commit_type .. ": " .. msg
@@ -88,26 +88,30 @@ vim.keymap.set("n", "<leader>gu", function()
     vim.notify("No commits to undo", vim.log.levels.WARN)
     return
   end
-  
+
   -- 取り消し方法を選択
   local undo_options = {
     " soft: コミット取り消し（変更は保持・ステージ済み）",
-    " mixed: コミット取り消し（変更は保持・未ステージ）"
+    " mixed: コミット取り消し（変更は保持・未ステージ）",
   }
-  
+
   vim.ui.select(undo_options, {
     prompt = "取り消し方法を選択:",
-    format_item = function(item) return item end,
+    format_item = function(item)
+      return item
+    end,
   }, function(choice)
-    if not choice then return end
-    
+    if not choice then
+      return
+    end
+
     local reset_type = "mixed" -- デフォルト
     if choice:match("soft") then
       reset_type = "soft"
-    elseif choice:match("mixed") then  
+    elseif choice:match("mixed") then
       reset_type = "mixed"
     end
-    
+
     -- 選択後即実行
     vim.cmd("Git reset --" .. reset_type .. " HEAD~1")
     vim.notify("✅ " .. reset_type .. " reset完了", vim.log.levels.INFO)
@@ -132,3 +136,23 @@ vim.keymap.set({ "n", "v", "o" }, "`", "0", { desc = "Move to start of line (cus
 
 -- LSP Code Action
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })
+
+-- Snacks.nvimを強制的に優先させる設定（LazyVimデフォルトを上書き）
+-- 既存のキーマップを削除してから設定
+vim.keymap.del("n", "<leader>fg", { silent = true })
+vim.keymap.set("n", "<leader>fg", function()
+  require("snacks").picker.grep()
+end, { desc = "Live Grep (Snacks)", buffer = false, silent = true })
+
+-- 遅延実行でも念のため設定（LazyVimのVeryLazyイベント後に実行）
+vim.api.nvim_create_autocmd("User", {
+  pattern = "VeryLazy",
+  callback = function()
+    -- 既存マッピングを削除
+    pcall(vim.keymap.del, "n", "<leader>fg", { silent = true })
+    -- 新しいマッピングを設定
+    vim.keymap.set("n", "<leader>fg", function()
+      require("snacks").picker.grep()
+    end, { desc = "Live Grep (Snacks)", buffer = false, silent = true })
+  end,
+})
