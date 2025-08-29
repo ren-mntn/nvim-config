@@ -17,11 +17,14 @@ return {
     -- "vertical"  - 縦長レイアウト
     -- "select"    - 選択用小レイアウト
 
-    -- ファイル表示形式の設定（フルパス表示）
+    -- ファイル表示形式の設定（ファイル名先頭表示）
     opts.picker.formatters = vim.tbl_deep_extend("force", opts.picker.formatters or {}, {
       file = {
         filename_only = false, -- フルパス表示（階層を省略しない）
-        truncate = 200, -- パス省略を大幅に緩和（デフォルト40→200）
+        filename_first = true, -- ファイル名を先頭に表示（重要）
+        truncate = 100, -- パス省略を調整（デフォルト40→100）
+        show_dirname = true, -- ディレクトリ名も表示
+        relative = "cwd", -- 現在のワーキングディレクトリからの相対パス
       },
     })
 
