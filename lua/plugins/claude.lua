@@ -31,14 +31,46 @@ return {
         -- ターミナルバッファかつClaudeCode関連の場合はウィンドウを閉じる
         if buftype == "terminal" and (bufname:match("claude") or bufname:match("ClaudeCode")) then
           vim.cmd("close")
+          return
+        end
+
+        -- ClaudeCodeウィンドウが開いているかチェック
+        local claude_win = nil
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+          local ok, buf = pcall(vim.api.nvim_win_get_buf, win)
+          if ok then
+            local win_bufname = vim.api.nvim_buf_get_name(buf)
+            local win_buftype = vim.api.nvim_get_option_value("buftype", { buf = buf })
+            if win_buftype == "terminal" and (win_bufname:match("claude") or win_bufname:match("ClaudeCode")) then
+              claude_win = win
+              break
+            end
+          end
+        end
+
+        if claude_win then
+          -- ClaudeCodeウィンドウが開いている場合はフォーカスする
+          vim.api.nvim_set_current_win(claude_win)
         else
-          -- そうでなければClaudeCodeを開く
+          -- ClaudeCodeウィンドウが開いていない場合は開く
           vim.cmd("ClaudeCode")
         end
       end,
       desc = "Toggle Claude Chat",
     },
-    { "<C-q>", "<cmd>ClaudeCodeAdd %<CR>", desc = "Add Current File to Claude" },
+    {
+      "<C-q>",
+      function()
+        local mode = vim.fn.mode()
+        if mode == "v" or mode == "V" or mode == "\22" then -- visual mode
+          vim.cmd("ClaudeCodeSend")
+        else
+          vim.cmd("ClaudeCodeAdd %")
+        end
+      end,
+      desc = "Add File (n) / Send Selection (v)",
+      mode = { "n", "v" },
+    },
 
     -- ========== Claude ターミナル・チャット ==========
     { "<leader>jj", "<cmd>ClaudeCode<CR>", desc = "Chat" },
