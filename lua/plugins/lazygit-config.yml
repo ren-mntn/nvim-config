@@ -54,7 +54,7 @@ git:
   autoRefresh: true
   branchLogCmd: "git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --"
   # 差分表示コマンドの設定
-  diffContextSize: 3
+  diffContextSize: 10  # 前後10行表示（デフォルト3行から増加）
 
 os:
   editCommand: "nvim"
