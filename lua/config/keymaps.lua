@@ -137,22 +137,7 @@ vim.keymap.set({ "n", "v", "o" }, "`", "0", { desc = "Move to start of line (cus
 -- LSP Code Action
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })
 
--- Snacks.nvimを強制的に優先させる設定（LazyVimデフォルトを上書き）
--- 既存のキーマップを削除してから設定
-vim.keymap.del("n", "<leader>fg", { silent = true })
+-- <leader>fg をLive Grepに上書き（LazyVimデフォルトはgit files）
 vim.keymap.set("n", "<leader>fg", function()
-  require("snacks").picker.grep()
-end, { desc = "Live Grep (Snacks)", buffer = false, silent = true })
-
--- 遅延実行でも念のため設定（LazyVimのVeryLazyイベント後に実行）
-vim.api.nvim_create_autocmd("User", {
-  pattern = "VeryLazy",
-  callback = function()
-    -- 既存マッピングを削除
-    pcall(vim.keymap.del, "n", "<leader>fg", { silent = true })
-    -- 新しいマッピングを設定
-    vim.keymap.set("n", "<leader>fg", function()
-      require("snacks").picker.grep()
-    end, { desc = "Live Grep (Snacks)", buffer = false, silent = true })
-  end,
-})
+  LazyVim.pick("live_grep")()
+end, { desc = "Live Grep (Root Dir)" })
