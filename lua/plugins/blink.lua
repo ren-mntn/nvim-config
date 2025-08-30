@@ -5,6 +5,7 @@
 --]]
 return {
   "saghen/blink.cmp",
+  enabled = false,
   dependencies = {
     "fang2hou/blink-copilot",
   },
