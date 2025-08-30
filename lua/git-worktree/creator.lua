@@ -67,7 +67,16 @@ local function setup_worktree(worktree_path, git_root, patch_file, dot_files)
 
   sync.sync_all_files(worktree_path, git_root, dot_files)
   utils.apply_patch_with_fallback(worktree_path, patch_file)
-  utils.install_dependencies_async(worktree_path)
+  utils.install_dependencies_async(worktree_path, function(success)
+    if success then
+      vim.notify("🎉 Worktree setup completed: " .. vim.fn.fnamemodify(worktree_path, ":t"), vim.log.levels.INFO)
+    else
+      vim.notify(
+        "⚠️ Worktree setup completed with errors: " .. vim.fn.fnamemodify(worktree_path, ":t"),
+        vim.log.levels.WARN
+      )
+    end
+  end)
 end
 
 function M.create_worktree()
@@ -181,7 +190,16 @@ function M.execute_setup_directly(worktree_path, git_root, patch_file, dot_files
 
   sync.sync_all_files(worktree_path, git_root, dot_files)
   utils.apply_patch_with_fallback(worktree_path, patch_file)
-  utils.install_dependencies_async(worktree_path)
+  utils.install_dependencies_async(worktree_path, function(success)
+    if success then
+      vim.notify("🎉 Worktree setup completed: " .. vim.fn.fnamemodify(worktree_path, ":t"), vim.log.levels.INFO)
+    else
+      vim.notify(
+        "⚠️ Worktree setup completed with errors: " .. vim.fn.fnamemodify(worktree_path, ":t"),
+        vim.log.levels.WARN
+      )
+    end
+  end)
 end
 
 return M

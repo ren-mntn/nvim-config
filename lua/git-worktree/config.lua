@@ -14,6 +14,8 @@ M.DEFAULT_CONFIG = {
   project_files = { ".npmrc" },
   global_gitignore_path = vim.fn.expand("~/.gitignore_global"),
   share_node_modules = true, -- mainのnode_modulesをシンボリックリンクで共有
+  auto_detect_expo = true, -- Expo/React Nativeプロジェクトの自動検出
+  expo_projects = {}, -- 明示的にExpoプロジェクトとして扱うパス（相対パス）
 }
 
 M.config = {}
