@@ -130,6 +130,13 @@
 |------|------|------|
 | `<S-Tab>` | Previous Snippet | 前のスニペットジャンプ（Select mode） |
 
+## Treesitter Context
+
+| キー | 機能 | 説明 |
+|------|------|------|
+| `<leader>tc` | Toggle Context | Treesitterコンテキスト表示切り替え |
+| `<leader>hi` | Dynamic Highlight | 動的ハイライト情報表示切り替え |
+
 ---
 
 **注意**: 

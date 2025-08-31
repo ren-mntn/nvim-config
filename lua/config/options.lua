@@ -63,9 +63,9 @@ vim.opt.ttimeoutlen = 10 -- キーコードタイムアウトを短縮
 vim.opt.updatetime = 50 -- 更新頻度を高める（デフォルト4000ms）
 
 -- スクロール関連の最適化
-vim.opt.scrolloff = 8 -- カーソル周りの表示行数
+vim.opt.scrolloff = 0 -- カーソル周りの表示行数
 vim.opt.scroll = 0 -- 0=画面半分スクロール（デフォルト）
-vim.opt.lazyredraw = false -- リアルタイム再描画
+vim.opt.lazyredraw = true -- リアルタイム再描画
 vim.opt.ttyfast = true -- 高速端末として扱う
 
 -- 診断のインライン表示を有効化
