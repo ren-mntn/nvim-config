@@ -141,3 +141,6 @@ vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action
 vim.keymap.set("n", "<leader>fg", function()
   LazyVim.pick("live_grep")()
 end, { desc = "Live Grep (Root Dir)" })
+
+-- "-" をブラックホールレジスタにマッピング
+vim.keymap.set({ "n", "x" }, "-", ""_", { desc = "Map to blackhole register" })
