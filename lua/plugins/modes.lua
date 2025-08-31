@@ -17,7 +17,7 @@ return {
       colors = {
         copy = "#f5c359", -- コピーモード (黄色系)
         delete = "#c75c6a", -- 削除モード (赤色系)
-        insert = "#78ccc5", -- 挿入モード (緑青系)
+        insert = "#93ffc5", -- 挿入モード (緑青系)
         visual = "#9745be", -- ビジュアルモード (紫系)
         replace = "#245361", -- 置換モード (青緑系)
       },
@@ -28,7 +28,7 @@ return {
       set_number = true, -- 行番号色の変更を有効
 
       -- ハイライトの透明度設定
-      line_opacity = 0.15, -- カーソルラインの透明度
+      line_opacity = 0.20, -- カーソルラインの透明度
 
       -- 除外するファイルタイプ
       ignore_filetypes = {
