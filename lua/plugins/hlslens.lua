@@ -16,32 +16,7 @@ return {
       "N",
       [[<Cmd>execute('normal! ' . v:count1 . 'N')<CR><Cmd>lua require('hlslens').start()<CR>]],
       desc = "前の検索結果",
-    },
-    {
-      "*",
-      [[*<Cmd>lua require('hlslens').start()<CR>]],
-      desc = "単語検索（前方）",
-    },
-    {
-      "#",
-      [[#<Cmd>lua require('hlslens').start()<CR>]],
-      desc = "単語検索（後方）",
-    },
-    {
-      "g*",
-      [[g*<Cmd>lua require('hlslens').start()<CR>]],
-      desc = "部分単語検索（前方）",
-    },
-    {
-      "g#",
-      [[g#<Cmd>lua require('hlslens').start()<CR>]],
-      desc = "部分単語検索（後方）",
-    },
-    {
-      "<leader>l",
-      "<Cmd>noh<CR>",
-      desc = "検索ハイライト消去",
-    },
+    }  
   },
   opts = function(_, opts)
     -- 安全な初期化
