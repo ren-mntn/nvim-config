@@ -168,7 +168,6 @@ return {
         desc = "Run Oxlint on current file",
       })
 
-      vim.notify("Oxlint integrated successfully (Lightweight, No LSP server)", vim.log.levels.INFO)
     end,
   },
 
