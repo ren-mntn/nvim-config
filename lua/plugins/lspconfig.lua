@@ -1,10 +1,134 @@
 --[[
-機能概要: Oxlint - ESLint診断の軽量代替（50-100x高速、メモリ使用量1GB削減）
-設定内容: リアルタイム診断、インライン表示、デバウンス機能
-キーバインド: :OxlintCheck（手動実行）
+機能概要: LSP統合設定 - ESLint・TypeScript・Tailwind・Biome LSPの統一管理
+設定内容: 全てのnvim-lspconfig設定を一箇所で管理
+キーバインド: LSP標準キーマップ
 --]]
+
+-- ESLint自動フォーマットの設定
+vim.g.lazyvim_eslint_auto_format = true
+
 return {
-  -- Oxlint統合（LSPサーバー不要の軽量実装）
+  -- 統合LSP設定
+  {
+    "neovim/nvim-lspconfig",
+    opts = function(_, opts)
+      -- auto_format変数の定義（ESLint用）
+      local auto_format = vim.g.lazyvim_eslint_auto_format ~= false
+
+      -- 安全な初期化
+      opts.servers = opts.servers or {}
+
+      -- =====================================
+      -- ESLint LSP設定
+      -- =====================================
+      opts.servers.eslint = {
+        settings = {
+          -- eslintrcがサブフォルダに配置された場合の検索補助
+          workingDirectories = { mode = "auto" },
+          format = auto_format,
+        },
+      }
+
+      -- =====================================
+      -- TypeScript設定（vtslsとtsserver無効化）
+      -- =====================================
+      -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
+      opts.servers.vtsls = false
+      opts.servers.tsserver = false
+
+      -- =====================================
+      -- Tailwind CSS設定（tailwind.luaから統合）
+      -- =====================================
+      opts.servers.tailwindcss = {
+        -- filetypeを指定
+        filetypes = {
+          "html",
+          "css",
+          "scss",
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact",
+          "vue",
+          "svelte",
+        },
+        settings = {
+          tailwindCSS = {
+            classAttributes = { "class", "className", "class:list", "classList", "ngClass" },
+            lint = {
+              cssConflict = "warning",
+              invalidApply = "error",
+              invalidConfigPath = "error",
+              invalidScreen = "error",
+              invalidTailwindDirective = "error",
+              invalidVariant = "error",
+              recommendedVariantOrder = "warning",
+            },
+            validate = true,
+          },
+        },
+        filetypes_exclude = { "markdown" },
+        filetypes_include = {},
+        root_dir = function(...)
+          return require("lspconfig.util").root_pattern(".git")(...)
+        end,
+      }
+
+      -- =====================================
+      -- Biome LSP設定（現在は無効化）
+      -- =====================================
+      -- 一時的にLSPを無効化し、CLIフォールバック方式のみ使用
+      -- 将来的にBiome LSPを有効化する場合はここで設定
+
+      -- =====================================
+      -- ESLint setup設定
+      -- =====================================
+      opts.setup = opts.setup or {}
+      opts.setup.eslint = function()
+        if not auto_format then
+          return
+        end
+
+        local function get_client(buf)
+          return LazyVim.lsp.get_clients({ name = "eslint", bufnr = buf })[1]
+        end
+
+        local formatter = LazyVim.lsp.formatter({
+          name = "eslint: lsp",
+          primary = false,
+          priority = 200,
+          filter = "eslint",
+        })
+
+        -- Neovim < 0.10.0の場合はEslintFixAllを使用
+        if not pcall(require, "vim.lsp._dynamic") then
+          formatter.name = "eslint: EslintFixAll"
+          formatter.sources = function(buf)
+            local client = get_client(buf)
+            return client and { "eslint" } or {}
+          end
+          formatter.format = function(buf)
+            local client = get_client(buf)
+            if client then
+              local diag = vim.diagnostic.get(buf, { namespace = vim.lsp.diagnostic.get_namespace(client.id) })
+              if #diag > 0 then
+                vim.cmd("EslintFixAll")
+              end
+            end
+          end
+        end
+
+        -- LazyVimフォーマッターとして登録
+        LazyVim.format.register(formatter)
+      end
+
+      return opts
+    end,
+  },
+
+  -- =====================================
+  -- Oxlint統合設定（oxlint.luaから統合）
+  -- =====================================
   {
     "neovim/nvim-lspconfig",
     config = function()
@@ -167,19 +291,6 @@ return {
       end, {
         desc = "Run Oxlint on current file",
       })
-
     end,
-  },
-
-  -- ESLint LSPサーバー完全無効化（重要）
-  {
-    "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        eslint = {
-          enabled = false, -- ESLint LSP完全排除（-1GB効果）
-        },
-      },
-    },
   },
 }

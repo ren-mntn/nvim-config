@@ -5,43 +5,7 @@
 --]]
 return {
 
-  -- LSP設定
-  {
-    "neovim/nvim-lspconfig",
-    opts = {
-      servers = {
-        tailwindcss = {
-          -- filetypeを追加指定
-          filetypes = {
-            "html",
-            "css",
-            "scss",
-            "javascript",
-            "javascriptreact",
-            "typescript",
-            "typescriptreact",
-            "vue",
-            "svelte",
-          },
-          settings = {
-            tailwindCSS = {
-              classAttributes = { "class", "className", "class:list", "classList", "ngClass" },
-              lint = {
-                cssConflict = "warning",
-                invalidApply = "error",
-                invalidConfigPath = "error",
-                invalidScreen = "error",
-                invalidTailwindDirective = "error",
-                invalidVariant = "error",
-                recommendedVariantOrder = "warning",
-              },
-              validate = true,
-            },
-          },
-        },
-      },
-    },
-  },
+  -- LSP設定は lspconfig.lua に統合されました
 
   -- nvim-highlight-colorsでTailwindカラーを表示（blink.cmp対応済み）
   {

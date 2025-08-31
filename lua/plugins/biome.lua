@@ -5,16 +5,6 @@
 --]]
 
 return {
-  -- nvim-lspconfig: BiomeのLSP設定（簡素化）
-  {
-    "neovim/nvim-lspconfig",
-    opts = function(_, opts)
-      -- 一時的にLSPを無効化し、CLIフォールバック方式のみ使用
-
-      return opts
-    end,
-  },
-
   -- conform.nvim: Biomeフォーマッター設定
   {
     "stevearc/conform.nvim",

@@ -56,15 +56,5 @@ return {
     end,
   },
 
-  -- LazyVim TypeScript extra設定を無効化（vtslsと競合回避）
-  {
-    "neovim/nvim-lspconfig",
-    opts = function(_, opts)
-      -- vtslsを無効化（typescript-tools.nvimと競合を避ける）
-      opts.servers = opts.servers or {}
-      opts.servers.vtsls = false
-      opts.servers.tsserver = false
-      return opts
-    end,
-  },
+  -- TypeScript LSP無効化設定は lspconfig.lua に統合されました
 }

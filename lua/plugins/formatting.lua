@@ -43,31 +43,40 @@ return {
             apply = true,
           })
 
-          -- 2. Biome全自動修正（インポート整理・React Hooks・フォーマット）を実行
+          -- 2. ESLint修正を実行
           vim.defer_fn(function()
-            local success, error_msg = pcall(function()
-              local conform = require("conform")
-              conform.format({
-                bufnr = bufnr,
-                async = false,
-                formatters = { "biome-check" },
-              })
-            end)
-
-            if success then
-              -- 保存
-              if vim.bo[bufnr].buftype == "" and vim.bo[bufnr].modifiable then
-                vim.cmd("write")
-              end
-              vim.notify("✅ TSServer + Biome修正完了", vim.log.levels.INFO)
-            else
-              vim.notify("❌ Biome失敗: " .. tostring(error_msg), vim.log.levels.ERROR)
+            local eslint_client = vim.lsp.get_clients({ name = "eslint", bufnr = bufnr })[1]
+            if eslint_client then
+              vim.cmd("EslintFixAll")
             end
-          end,10) -- TSServer処理後にBiome実行
+
+            -- 3. Biome全自動修正（インポート整理・React Hooks・フォーマット）を実行
+            vim.defer_fn(function()
+              local success, error_msg = pcall(function()
+                local conform = require("conform")
+                conform.format({
+                  bufnr = bufnr,
+                  async = false,
+                  formatters = { "biome-check" },
+                })
+              end)
+
+              if success then
+                -- 保存
+                if vim.bo[bufnr].buftype == "" and vim.bo[bufnr].modifiable then
+                  vim.cmd("write")
+                end
+                vim.notify("✅ TSServer + ESLint + Biome修正完了", vim.log.levels.INFO)
+              else
+                vim.notify("❌ Biome失敗: " .. tostring(error_msg), vim.log.levels.ERROR)
+              end
+            end, 10) -- ESLint処理後にBiome実行
+          end, 10) -- TSServer処理後にESLint実行
         end,
-        desc = "auto fix with Biome + save",
+        desc = "auto fix with TSServer + ESLint + Biome + save",
         mode = "n",
       },
     },
   },
 }
+
