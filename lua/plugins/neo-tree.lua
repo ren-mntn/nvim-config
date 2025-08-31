@@ -19,6 +19,7 @@ return {
     opts.filesystem = opts.filesystem or {}
     opts.window = opts.window or {}
     opts.default_component_configs = opts.default_component_configs or {}
+    opts.source_selector = opts.source_selector or {}
 
     -- 既存設定のマージ（完全上書きではない）
     opts.filesystem = vim.tbl_deep_extend("force", opts.filesystem, {
@@ -72,6 +73,9 @@ return {
     -- Neo-tree内でのキーマッピング
     opts.window = vim.tbl_deep_extend("force", opts.window, {
       mappings = {
+        -- ソース間切り替え
+        ["<"] = "prev_source",
+        [">"] = "next_source",
         -- ClaudeにファイルまたはディレクトリをContext追加
         ["<C-q>"] = {
           function(state)
@@ -106,6 +110,17 @@ return {
           end,
           desc = "Add current item to Claude (alternative)",
         },
+      },
+    })
+
+    -- Source Selector設定
+    opts.source_selector = vim.tbl_deep_extend("force", opts.source_selector, {
+      winbar = true, -- winbarにソースセレクターを表示
+      statusline = false, -- statuslineは使用しない
+      sources = {
+        { source = "filesystem", display_name = " 󰉓 Files " },
+        { source = "buffers", display_name = " 󰈚 Buffers " },
+        { source = "git_status", display_name = " 󰊢 Git " },
       },
     })
 

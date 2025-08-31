@@ -20,6 +20,16 @@
 | `<C-q>` | Add File to Claude | 現在のファイルをClaudeのコンテキストに追加 |
 | `<C-g>` | Toggle Claude Chat | Claude チャット切り替え |
 
+## Neo-tree Navigation
+
+| キー | 機能 | 説明 |
+|------|------|------|
+| `<` | Previous Source | Neo-tree前のソースに切り替え |
+| `>` | Next Source | Neo-tree次のソースに切り替え |
+| `<C-q>` | Add to Claude | Neo-tree選択項目をClaude追加 |
+| `A` | Add to Claude (Recursive) | Neo-treeディレクトリを再帰的にClaude追加 |
+| `<C-Q>` | Add to Claude (Alt) | Neo-tree選択項目をClaude追加（代替） |
+
 ## Window Navigation
 
 | キー | 機能 | 説明 |
