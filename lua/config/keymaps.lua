@@ -143,4 +143,4 @@ vim.keymap.set("n", "<leader>fg", function()
 end, { desc = "Live Grep (Root Dir)" })
 
 -- "-" をブラックホールレジスタにマッピング
-vim.keymap.set({ "n", "x" }, "-", ""_", { desc = "Map to blackhole register" })
+vim.keymap.set({ "n", "x" }, "-", '"_', { desc = "Map to blackhole register" })
