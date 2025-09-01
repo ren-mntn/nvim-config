@@ -195,21 +195,20 @@ return {
       })
 
       -- -- GitSigns用ハイライトも設定
-      -- local colors = require("config.colors")
-      -- vim.api.nvim_set_hl(0, "GitSignsAdd", {
-      --   bg = "#4C5A2C",
-      --   fg = colors.colors.white
-      -- })
+      local colors = require("config.colors")
+      vim.api.nvim_set_hl(0, "GitSignsAdd", {
+        bg = "#4d8900",
+        fg =  "#4d8900"     })
 
-      -- vim.api.nvim_set_hl(0, "GitSignsChange", {
-      --   bg = "#4d4d00",
-      --   fg = "#000000"
-      -- })
+      vim.api.nvim_set_hl(0, "GitSignsChange", {
+        bg = "#6a8bff",
+        fg = "#6a8bff"
+      })
 
-      -- vim.api.nvim_set_hl(0, "GitSignsDelete", {
-      --   bg = "#4d0000",
-      --   fg = colors.colors.white
-      -- })
+      vim.api.nvim_set_hl(0, "GitSignsDelete", {
+        bg = "#f34b50",
+        fg =  "#f34b50",
+      })
     end
 
     -- 初回設定

@@ -26,11 +26,11 @@ return {
           -- 診断のタイミング：変更時（リアルタイム診断）
           publish_diagnostic_on = "change",
           -- コードアクションとしてimport整理機能とクイックフィックスを公開
-          expose_as_code_action = { 
-            "organize_imports", 
-            "add_missing_imports", 
+          expose_as_code_action = {
+            "organize_imports",
+            "add_missing_imports",
             "remove_unused_imports",
-            "fix_all"
+            "fix_all",
           },
           -- JSX自動クローズタグ
           jsx_close_tag = {
@@ -39,12 +39,12 @@ return {
           },
           -- tsserver設定
           tsserver_file_preferences = {
-            includeInlayParameterNameHints = "literals",
+            includeInlayParameterNameHints = "none",
             includeCompletionsForModuleExports = true,
             quotePreference = "auto",
             -- React Hooks関連の詳細エラー表示を有効化
-            includeInlayEnumMemberValueHints = true,
-            includeInlayFunctionLikeReturnTypeHints = true,
+            includeInlayEnumMemberValueHints = false,
+            includeInlayFunctionLikeReturnTypeHints = false,
             includeInlayVariableTypeHints = false,
           },
           tsserver_format_options = {

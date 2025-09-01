@@ -27,9 +27,9 @@ return {
 
       -- gitsignsの色を明示的に設定して視認性を改善
       vim.cmd([[
-        highlight ScrollbarGitAdd guifg=#A3BE8C guibg=NONE
-        highlight ScrollbarGitChange guifg=#EBCB8B guibg=NONE  
-        highlight ScrollbarGitDelete guifg=#BF616A guibg=NONE
+        highlight ScrollbarGitAdd guifg=#4d8900 guibg=NONE
+        highlight ScrollbarGitChange guifg=#6a8bff guibg=NONE  
+        highlight ScrollbarGitDelete guifg=#f34b50 guibg=NONE
       ]])
     end
   end,
