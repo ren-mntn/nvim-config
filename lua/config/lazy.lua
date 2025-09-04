@@ -23,9 +23,9 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.lang.python" },
     { import = "lazyvim.plugins.extras.lang.docker" },
     
-    -- リント・フォーマット（Biome移行のためコメントアウト）
-    -- { import = "lazyvim.plugins.extras.linting.eslint" },
-    -- { import = "lazyvim.plugins.extras.formatting.prettier" },
+    -- リント・フォーマット
+    { import = "lazyvim.plugins.extras.linting.eslint" },
+    -- { import = "lazyvim.plugins.extras.formatting.prettier" }, -- Biome移行のためコメントアウト
 
     { import = "plugins" },
   },
