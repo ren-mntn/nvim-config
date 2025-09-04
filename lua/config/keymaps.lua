@@ -129,6 +129,18 @@ vim.keymap.set({ "n", "v", "o" }, "`", "0", { desc = "Move to start of line (cus
 -- LSP Code Action
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })
 
+-- ファイル検索を常にプロジェクトルートから実行（モノレポ対応）
+vim.keymap.set("n", "<leader>ff", function()
+  -- .gitがあるルートディレクトリを検索
+  local root = vim.fn.finddir(".git", ".;")
+  if root ~= "" then
+    root = vim.fn.fnamemodify(root, ":h")
+  else
+    root = vim.fn.getcwd()
+  end
+  require("snacks").picker.files({ cwd = root })
+end, { desc = "Find Files (Project Root)" })
+
 -- <leader>fg をLive Grepに上書き（LazyVimデフォルトはgit files）
 vim.keymap.set("n", "<leader>fg", function()
   LazyVim.pick("live_grep")()

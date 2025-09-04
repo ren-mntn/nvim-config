@@ -51,6 +51,15 @@ return {
     opts.picker.files = vim.tbl_deep_extend("force", opts.picker.files or {}, {
       hidden = false,
       ignored = true, -- gitignoreを尊重（最重要）
+      -- プロジェクトルートから検索（モノレポ対応）
+      cwd = function()
+        -- .gitがあるルートディレクトリを検索
+        local root = vim.fn.finddir(".git", ".;")
+        if root ~= "" then
+          return vim.fn.fnamemodify(root, ":h")
+        end
+        return vim.fn.getcwd()
+      end,
       exclude = {
         "node_modules/**",
         "dist/**",
@@ -195,20 +204,19 @@ return {
       })
 
       -- -- GitSigns用ハイライトも設定
-      local colors = require("config.colors")
-      vim.api.nvim_set_hl(0, "GitSignsAdd", {
-        bg = "#4d8900",
-        fg =  "#4d8900"     })
-
-      vim.api.nvim_set_hl(0, "GitSignsChange", {
-        bg = "#6a8bff",
-        fg = "#6a8bff"
-      })
-
-      vim.api.nvim_set_hl(0, "GitSignsDelete", {
-        bg = "#f34b50",
-        fg =  "#f34b50",
-      })
+      -- vim.api.nvim_set_hl(0, "GitSignsAdd", {
+      --   bg = "#4d8900",
+      --   fg =  "#E8E8E8"     })
+      --
+      -- vim.api.nvim_set_hl(0, "GitSignsChange", {
+      --   bg = "#6a8bff",
+      --   fg = "#E8E8E8"
+      -- })
+      --
+      -- vim.api.nvim_set_hl(0, "GitSignsDelete", {
+      --   bg = "#f34b50",
+      --   fg =  "#E8E8E8",
+      -- })
     end
 
     -- 初回設定
