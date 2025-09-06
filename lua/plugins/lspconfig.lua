@@ -1,5 +1,5 @@
 --[[
-機能概要: LSP統合設定 - ESLint・TypeScript・Tailwind・Biome LSPの統一管理
+機能概要: LSP統合設定 - ESLint・TypeScript・Tailwind LSPの統一管理
 設定内容: 全てのnvim-lspconfig設定を一箇所で管理
 キーバインド: LSP標準キーマップ
 --]]
@@ -78,12 +78,6 @@ return {
           return require("lspconfig.util").root_pattern(".git")(...)
         end,
       }
-
-      -- =====================================
-      -- Biome LSP設定（現在は無効化）
-      -- =====================================
-      -- 一時的にLSPを無効化し、CLIフォールバック方式のみ使用
-      -- 将来的にBiome LSPを有効化する場合はここで設定
 
       -- =====================================
       -- ESLint setup設定

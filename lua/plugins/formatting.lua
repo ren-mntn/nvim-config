@@ -1,7 +1,7 @@
 --[[
-機能概要: Biome統合フォーマット設定
-設定内容: <leader>; で保存 + Biomeによる全自動修正（インポート・React Hooks・フォーマット）
-キーバインド: <leader>; - Biome全自動修正（unsafe fix含む）+ 保存
+機能概要: TSServer + ESLint統合フォーマット設定
+設定内容: <leader>; で保存 + TSServer自動インポート + ESLint修正
+キーバインド: <leader>; - TSServer自動インポート + ESLint修正 + 保存
 --]]
 
 return {
@@ -50,33 +50,18 @@ return {
               vim.cmd("EslintFixAll")
             end
 
-            -- 3. Biome全自動修正（インポート整理・React Hooks・フォーマット）を実行
+            -- 3. 保存
             vim.defer_fn(function()
-              local success, error_msg = pcall(function()
-                local conform = require("conform")
-                conform.format({
-                  bufnr = bufnr,
-                  async = false,
-                  formatters = { "biome-check" },
-                })
-              end)
-
-              if success then
-                -- 保存
-                if vim.bo[bufnr].buftype == "" and vim.bo[bufnr].modifiable then
-                  vim.cmd("write")
-                end
-                vim.notify("✅ TSServer + ESLint + Biome修正完了", vim.log.levels.INFO)
-              else
-                vim.notify("❌ Biome失敗: " .. tostring(error_msg), vim.log.levels.ERROR)
+              if vim.bo[bufnr].buftype == "" and vim.bo[bufnr].modifiable then
+                vim.cmd("write")
               end
-            end, 10) -- ESLint処理後にBiome実行
+              vim.notify("✅ TSServer + ESLint修正完了", vim.log.levels.INFO)
+            end, 10) -- ESLint処理後に保存
           end, 10) -- TSServer処理後にESLint実行
         end,
-        desc = "auto fix with TSServer + ESLint + Biome + save",
+        desc = "auto fix with TSServer + ESLint + save",
         mode = "n",
       },
     },
   },
 }
-
